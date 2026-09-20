@@ -389,6 +389,13 @@ function App() {
         } else {
           setNotFound(true);
         }
+      } else if (!Array.isArray(data.veilles) || data.veilles.length === 0) {
+        // the row exists but has no veilles yet (e.g. the SQL seed placeholder) - fill it in
+        const { data: filled } = await sb.from("plannings")
+          .update({ veilles: buildDefaultVeilles() })
+          .eq("id", planningId)
+          .select().single();
+        if (!cancelled) applyRow(filled || { ...data, veilles: buildDefaultVeilles() });
       } else {
         applyRow(data);
       }
@@ -599,8 +606,8 @@ function App() {
     URL.revokeObjectURL(url);
   };
 
-  const commonRequired = veilles.every((v) => requiredFor(v) === requiredFor(veilles[0])) ? requiredFor(veilles[0]) : null;
-  const commonDuration = veilles.every((v) => v.duration === veilles[0].duration) ? veilles[0].duration : null;
+  const commonRequired = veilles.length > 0 && veilles.every((v) => requiredFor(v) === requiredFor(veilles[0])) ? requiredFor(veilles[0]) : null;
+  const commonDuration = veilles.length > 0 && veilles.every((v) => v.duration === veilles[0].duration) ? veilles[0].duration : null;
 
   if (notConfigured) {
     return (
