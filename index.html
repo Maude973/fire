@@ -395,14 +395,17 @@ function App() {
       if (!cancelled) setLoading(false);
     })();
 
-    const channel = sb
-      .channel("planning_changes_" + planningId)
-      .on("postgres_changes", { event: "*", schema: "public", table: "plannings", filter: "id=eq." + planningId }, (payload) => {
-        if (payload.new) applyRow(payload.new);
-      })
-      .subscribe();
+    let channel = null;
+    try {
+      channel = sb
+        .channel("planning_changes_" + planningId)
+        .on("postgres_changes", { event: "*", schema: "public", table: "plannings", filter: "id=eq." + planningId }, (payload) => {
+          if (payload.new) applyRow(payload.new);
+        })
+        .subscribe();
+    } catch (e) { console.error("Realtime subscribe failed:", e); }
 
-    return () => { cancelled = true; sb.removeChannel(channel); };
+    return () => { cancelled = true; if (channel) { try { sb.removeChannel(channel); } catch (e) {} } };
   }, []);
 
   const persist = useCallback((nextV, nextMax) => {
@@ -1320,9 +1323,34 @@ function VeilleDetail({
   );
 }
 
+/* ------------------------------ error boundary ------------------------------ */
+class ErrorBoundary extends React.Component {
+  constructor(p) { super(p); this.state = { error: null }; }
+  static getDerivedStateFromError(error) { return { error }; }
+  componentDidCatch(error, info) { console.error("Planning Fire crash:", error, info); }
+  render() {
+    if (this.state.error) {
+      return (
+        <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#12132B", color: "#F3F1E9", fontFamily: "Inter, sans-serif", padding: 30, textAlign: "center" }}>
+          <div style={{ maxWidth: 560 }}>
+            <div style={{ fontFamily: "Fraunces, serif", fontSize: 22, fontWeight: 600, marginBottom: 12 }}>Un problème est survenu</div>
+            <div style={{ color: "#9C9BBE", fontSize: 13.5, lineHeight: 1.6, marginBottom: 16 }}>
+              Fais une capture d'écran de ce message pour le transmettre.
+            </div>
+            <pre style={{ textAlign: "left", background: "#1B1D3E", border: "1px solid #33355C", borderRadius: 8, padding: 14, fontSize: 12, color: "#E3A72E", overflowX: "auto", whiteSpace: "pre-wrap" }}>
+              {String((this.state.error && this.state.error.message) || this.state.error)}
+            </pre>
+          </div>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
 /* ------------------------------ mount ------------------------------ */
 const __root = ReactDOM.createRoot(document.getElementById("root"));
-__root.render(<App />);
+__root.render(<ErrorBoundary><App /></ErrorBoundary>);
 </script>
 <script>
 (function () {
