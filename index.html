@@ -94,7 +94,7 @@ function slotsFor(v) {
 }
 function getParticipants(v, day, si) {
   const raw = (v.participants[day] && v.participants[day][si]) || [];
-  return raw.map((p) => (typeof p === "string" ? { nom: p, email: "", tel: "" } : p));
+  return raw.map((p) => (typeof p === "string" ? { nom: p, email: "" } : p));
 }
 function getLocked(v, day, si) { return !!(v.locked[day] && v.locked[day][si]); }
 function openCountFor(v, day) {
@@ -193,17 +193,16 @@ function downloadIcsMulti(events, filename) {
   const a = document.createElement("a"); a.href = url; a.download = filename; a.click();
   URL.revokeObjectURL(url);
 }
-function mailtoConfirmation(v, day, slot, person) {
+function confirmationText(v, day, slot, person) {
   const start = nextDateFor(day, slot.startMin);
   const dateStr = start.toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" });
-  const subject = `Confirmation — Veille ${v.id} ${v.name}`;
-  const body = [`Bonjour ${person.nom},`, "", "Ton engagement dans la chaine de priere est confirme :", "",
+  return [`Confirmation — Veille ${v.id} ${v.name}`, "", `Bonjour ${person.nom},`, "",
+    "Ton engagement dans la chaîne de prière est confirmé :", "",
     `Date : ${dateStr}`, `Horaire : ${fmt(slot.startMin)} - ${fmt(slot.endMin)}`,
-    `Veille ${v.id} — ${v.name}`, `Theme : ${v.theme}`, "",
-    `"${v.versets[0]?.text || ""}" (${v.versets[0]?.ref || ""})`, "",
-    "Pense a ajouter ce creneau a ton calendrier pour recevoir un rappel 1h avant.", "",
+    `Veille ${v.id} — ${v.name}`, `Thème : ${v.theme}`, "",
+    `« ${v.versets[0]?.text || ""} » (${v.versets[0]?.ref || ""})`, "",
+    "Pense à ajouter ce créneau à ton calendrier pour recevoir un rappel 1h avant.", "",
     "ICC Guyane — Planning Fire"].join("\n");
-  return `mailto:${person.email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
 }
 
 /* --------------------------- wheel --------------------------- */
@@ -272,21 +271,30 @@ const navBtn = (active) => ({
   color: active ? "#E3A72E" : "#9C9BBE", cursor: "pointer",
 });
 
-/* ---------------- shared persistence (Supabase) ---------------- */
+/* ---------------- shared persistence (Supabase, multi-planning) ---------------- */
 /* 1. Dans ton projet Supabase, ouvre "SQL Editor" et exécute :
 
-     create table if not exists public.planning_state (
-       id int primary key default 1,
+     create table if not exists public.plannings (
+       id text primary key,
+       title text not null,
        veilles jsonb not null,
-       max_par_personne int not null default 0
+       max_par_personne int not null default 0,
+       created_at timestamptz not null default now()
      );
-     alter table public.planning_state enable row level security;
-     create policy "public read" on public.planning_state for select using (true);
-     create policy "public insert" on public.planning_state for insert with check (true);
-     create policy "public update" on public.planning_state for update using (true) with check (true);
-     insert into public.planning_state (id, veilles, max_par_personne)
-       values (1, '[]'::jsonb, 0) on conflict (id) do nothing;
-     alter publication supabase_realtime add table public.planning_state;
+     alter table public.plannings enable row level security;
+     drop policy if exists "public read" on public.plannings;
+     create policy "public read" on public.plannings for select using (true);
+     drop policy if exists "public insert" on public.plannings;
+     create policy "public insert" on public.plannings for insert with check (true);
+     drop policy if exists "public update" on public.plannings;
+     create policy "public update" on public.plannings for update using (true) with check (true);
+     insert into public.plannings (id, title, veilles, max_par_personne)
+       values ('default', 'Veillons Ensemble', '[]'::jsonb, 0) on conflict (id) do nothing;
+     do $$
+     begin
+       alter publication supabase_realtime add table public.plannings;
+     exception when others then null;
+     end $$;
 
    2. Dans "Project Settings" > "API", copie "Project URL" et la clé "anon public"
       ci-dessous à la place des valeurs "VOTRE_...".
@@ -304,9 +312,31 @@ function getSupabase() {
     return __sb;
   } catch (e) { console.error(e); return null; }
 }
+function currentPlanningId() {
+  try {
+    const id = new URLSearchParams(window.location.search).get("p");
+    return id ? id : "default";
+  } catch (e) { return "default"; }
+}
+function slugify(title) {
+  const base = title.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, "-").replace(/(^-+|-+$)/g, "").slice(0, 40);
+  return (base || "planning") + "-" + Date.now().toString(36).slice(-4);
+}
+function goToPlanning(id) {
+  const url = new URL(window.location.href);
+  url.searchParams.set("p", id);
+  window.location.href = url.toString();
+}
 
 /* ============================ APP ============================ */
 function App() {
+  const planningId = useRef(currentPlanningId()).current;
+  const [planningTitle, setPlanningTitle] = useState("");
+  const [notFound, setNotFound] = useState(false);
+  const [plannings, setPlannings] = useState(null); // list, fetched lazily for the Plannings view
+  const [newPlanningOpen, setNewPlanningOpen] = useState(false);
+  const [newPlanningTitle, setNewPlanningTitle] = useState("");
   const [veilles, setVeilles] = useState(buildDefaultVeilles());
   const [maxParPersonne, setMaxParPersonne] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -318,7 +348,7 @@ function App() {
   const [readOnly, setReadOnly] = useState(false);
   const [me, setMe] = useState(null);
   const [positioning, setPositioning] = useState(null);
-  const [form, setForm] = useState({ nom: "", email: "", tel: "" });
+  const [form, setForm] = useState({ nom: "", email: "" });
   const [confirmed, setConfirmed] = useState(null);
   const [toast, setToast] = useState("");
   const saveTimer = useRef(null);
@@ -342,18 +372,23 @@ function App() {
       applyingRemote.current = true;
       if (Array.isArray(row.veilles)) setVeilles(row.veilles);
       if (typeof row.max_par_personne === "number") setMaxParPersonne(row.max_par_personne);
+      if (typeof row.title === "string") setPlanningTitle(row.title);
       applyingRemote.current = false;
     };
 
     (async () => {
-      const { data, error } = await sb.from("planning_state").select("*").eq("id", 1).single();
+      const { data, error } = await sb.from("plannings").select("*").eq("id", planningId).single();
       if (cancelled) return;
-      if (error || !data || !Array.isArray(data.veilles) || data.veilles.length === 0) {
-        // first run ever (or empty row): seed with the defaults
-        const { data: seeded } = await sb.from("planning_state")
-          .upsert({ id: 1, veilles: buildDefaultVeilles(), max_par_personne: 0 })
-          .select().single();
-        if (!cancelled) applyRow(seeded);
+      if (error || !data) {
+        if (planningId === "default") {
+          // first run ever: seed the default planning
+          const { data: seeded } = await sb.from("plannings")
+            .upsert({ id: "default", title: "Veillons Ensemble", veilles: buildDefaultVeilles(), max_par_personne: 0 })
+            .select().single();
+          if (!cancelled) applyRow(seeded);
+        } else {
+          setNotFound(true);
+        }
       } else {
         applyRow(data);
       }
@@ -361,8 +396,8 @@ function App() {
     })();
 
     const channel = sb
-      .channel("planning_state_changes")
-      .on("postgres_changes", { event: "*", schema: "public", table: "planning_state", filter: "id=eq.1" }, (payload) => {
+      .channel("planning_changes_" + planningId)
+      .on("postgres_changes", { event: "*", schema: "public", table: "plannings", filter: "id=eq." + planningId }, (payload) => {
         if (payload.new) applyRow(payload.new);
       })
       .subscribe();
@@ -378,9 +413,9 @@ function App() {
       pendingRef.current = null;
       const sb = getSupabase();
       if (!sb) { setNotConfigured(true); return; }
-      const { error } = await sb.from("planning_state")
+      const { error } = await sb.from("plannings")
         .update({ veilles: toSend.veilles, max_par_personne: toSend.maxParPersonne })
-        .eq("id", 1);
+        .eq("id", planningId);
       if (error) {
         if (error.code === "42501" || /permission|policy/i.test(error.message || "")) {
           setReadOnly(true);
@@ -391,6 +426,24 @@ function App() {
       }
     }, 400);
   }, []);
+
+  const loadPlanningsList = useCallback(async () => {
+    const sb = getSupabase();
+    if (!sb) return;
+    const { data } = await sb.from("plannings").select("id,title,created_at").order("created_at", { ascending: false });
+    setPlannings(data || []);
+  }, []);
+
+  const createPlanning = async () => {
+    const title = newPlanningTitle.trim();
+    if (!title) return;
+    const sb = getSupabase();
+    if (!sb) return;
+    const id = slugify(title);
+    const { error } = await sb.from("plannings").insert({ id, title, veilles: buildDefaultVeilles(), max_par_personne: 0 });
+    if (error) { showToast("Création impossible, réessaie"); return; }
+    goToPlanning(id);
+  };
 
   const updateVeilles = (up) => setVeilles((prev) => {
     const next = typeof up === "function" ? up(prev) : up;
@@ -434,13 +487,13 @@ function App() {
       return;
     }
     setPositioning({ veilleId: vId, day, slotIndex: si });
-    setForm(me ? { ...me } : { nom: "", email: "", tel: "" });
+    setForm(me ? { ...me } : { nom: "", email: "" });
   };
 
   const confirmPositioning = () => {
     if (!form.nom.trim() || !form.email.trim()) { showToast("Le nom et l'email sont obligatoires"); return; }
     const { veilleId, day, slotIndex } = positioning;
-    const person = { nom: form.nom.trim(), email: form.email.trim(), tel: form.tel.trim() };
+    const person = { nom: form.nom.trim(), email: form.email.trim() };
     const v0 = veilles.find((x) => x.id === veilleId);
     if (getParticipants(v0, day, slotIndex).some((p) => p.email.toLowerCase() === person.email.toLowerCase())) {
       showToast("Tu es déjà inscrit sur ce créneau"); return;
@@ -496,6 +549,11 @@ function App() {
     askConfirm("Annuler ton créneau ?", () => removeParticipant(veilleId, day, slotIndex, idx));
   };
   const setAllRequired = (n) => updateVeilles((p) => p.map((v) => ({ ...v, conducteursRequis: n })));
+  const setAllDuration = (d) => {
+    askConfirm("Changer le format des créneaux réinitialise les engagements sur toutes les veilles. Continuer ?", () => {
+      updateVeilles((p) => p.map((v) => ({ ...v, duration: d, participants: {}, locked: {} })));
+    });
+  };
   const addObjectif = (id) => updateVeilles((p) => p.map((v) => (v.id === id ? { ...v, objectifs: [...v.objectifs, "Nouveau sujet"] } : v)));
   const removeObjectif = (id, i) => updateVeilles((p) => p.map((v) => (v.id === id ? { ...v, objectifs: v.objectifs.filter((_, j) => j !== i) } : v)));
   const editObjectif = (id, i, t) => updateVeilles((p) => p.map((v) => (v.id === id ? { ...v, objectifs: v.objectifs.map((o, j) => (j === i ? t : o)) } : v)));
@@ -528,7 +586,7 @@ function App() {
   const exportContacts = () => {
     const rows = [["Jour", "Veille", "Horaire", "Nom", "Email", "Telephone"]];
     veilles.forEach((v) => DAYS.forEach((d, di) => slotsFor(v).forEach((s) =>
-      getParticipants(v, di, s.index).forEach((p) => rows.push([d, `Veille ${v.id} ${v.name}`, `${fmt(s.startMin)}-${fmt(s.endMin)}`, p.nom, p.email, p.tel]))
+      getParticipants(v, di, s.index).forEach((p) => rows.push([d, `Veille ${v.id} ${v.name}`, `${fmt(s.startMin)}-${fmt(s.endMin)}`, p.nom, p.email]))
     )));
     if (rows.length === 1) { showToast("Aucun conducteur inscrit"); return; }
     const csv = rows.map((r) => r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(";")).join("\n");
@@ -539,6 +597,7 @@ function App() {
   };
 
   const commonRequired = veilles.every((v) => requiredFor(v) === requiredFor(veilles[0])) ? requiredFor(veilles[0]) : null;
+  const commonDuration = veilles.every((v) => v.duration === veilles[0].duration) ? veilles[0].duration : null;
 
   if (notConfigured) {
     return (
@@ -549,6 +608,17 @@ function App() {
             La base de données Supabase n'est pas encore configurée. Ouvre le fichier et remplace les valeurs
             « VOTRE_... » de <code>SUPABASE_URL</code> et <code>SUPABASE_ANON_KEY</code> par celles de ton projet Supabase.
           </div>
+        </div>
+      </div>
+    );
+  }
+  if (notFound) {
+    return (
+      <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#12132B", color: "#F3F1E9", fontFamily: "Inter, sans-serif", padding: 30, textAlign: "center" }}>
+        <div style={{ maxWidth: 420 }}>
+          <div style={{ fontFamily: "Fraunces, serif", fontSize: 22, fontWeight: 600, marginBottom: 12 }}>Planning introuvable</div>
+          <div style={{ color: "#9C9BBE", fontSize: 14.5, lineHeight: 1.6, marginBottom: 18 }}>Ce lien ne correspond à aucun planning existant.</div>
+          <button onClick={() => goToPlanning("default")} style={btnGold}>Aller au planning principal</button>
         </div>
       </div>
     );
@@ -583,7 +653,7 @@ function App() {
           <div style={{ display: "flex", alignItems: "center", gap: 13 }}>
             <img src={LOGO_SRC} alt="ICC Guyane" style={{ height: 38, filter: "brightness(0) invert(1)" }} />
             <div>
-              <div style={{ fontFamily: "Fraunces, serif", fontWeight: 700, fontSize: 18.5 }}>Planning Fire</div>
+              <div style={{ fontFamily: "Fraunces, serif", fontWeight: 700, fontSize: 18.5 }}>{planningTitle || "Planning Fire"}</div>
               <div style={{ fontSize: 11.5, color: "#9C9BBE" }}>Une chaîne de prière qui ne s'arrête jamais</div>
             </div>
           </div>
@@ -592,6 +662,7 @@ function App() {
             <button onClick={() => setView("week")} style={navBtn(view === "week")}><CalendarDays size={14} /> Semaine</button>
             <button onClick={() => setView("mine")} style={navBtn(view === "mine")}><User size={14} /> Mes créneaux{mine.length > 0 && <span style={{ background: "#E3A72E", color: "#12132B", borderRadius: 999, padding: "0 6px", fontSize: 11, fontWeight: 700 }}>{mine.length}</span>}</button>
             {isAdmin && <button onClick={() => setView("stats")} style={navBtn(view === "stats")}><BarChart3 size={14} /> Stats</button>}
+            {isAdmin && <button onClick={() => { setView("plannings"); loadPlanningsList(); }} style={navBtn(view === "plannings")}><BookOpen size={14} /> Plannings</button>}
             <button onClick={tryEnableAdmin} style={navBtn(isAdmin)}><Settings size={14} /> Organisateur</button>
           </div>
         </div>
@@ -618,6 +689,12 @@ function App() {
         {isAdmin && (
           <div className="no-print" style={{ background: "rgba(227,167,46,0.07)", borderBottom: "1px solid #262852", padding: "11px 22px", display: "flex", alignItems: "center", gap: 20, flexWrap: "wrap", fontSize: 12.5, color: "#9C9BBE" }}>
             <span style={{ display: "flex", alignItems: "center", gap: 7 }}>
+              <Clock size={13} /> Format des créneaux (toutes veilles)
+              {[30, 60].map((d) => (
+                <button key={d} onClick={() => setAllDuration(d)} style={{ padding: "3px 10px", borderRadius: 999, fontSize: 12, cursor: "pointer", border: "1px solid " + (commonDuration === d ? "#E3A72E" : "#33355C"), background: commonDuration === d ? "rgba(227,167,46,0.16)" : "transparent", color: commonDuration === d ? "#E3A72E" : "#9C9BBE", fontWeight: commonDuration === d ? 700 : 500 }}>{d} min</button>
+              ))}
+            </span>
+            <span style={{ display: "flex", alignItems: "center", gap: 7 }}>
               <Users size={13} /> Conducteurs / créneau (toutes veilles)
               {[1, 2, 3].map((n) => (
                 <button key={n} onClick={() => setAllRequired(n)} style={{ padding: "3px 10px", borderRadius: 999, fontSize: 12, cursor: "pointer", border: "1px solid " + (commonRequired === n ? "#E3A72E" : "#33355C"), background: commonRequired === n ? "rgba(227,167,46,0.16)" : "transparent", color: commonRequired === n ? "#E3A72E" : "#9C9BBE", fontWeight: commonRequired === n ? 700 : 500 }}>{n}</button>
@@ -637,6 +714,7 @@ function App() {
         {view === "week" && <WeekView veilles={veilles} isAdmin={isAdmin} onPosition={openPositioning} onSelectVeille={(id) => { setSelectedId(id); setView("veille"); }} onShareAllGaps={shareAllGaps} />}
         {view === "mine" && <MineView mine={mine} me={me} onCancel={cancelMine} onGoWeek={() => setView("week")} />}
         {view === "stats" && <StatsView veilles={veilles} />}
+        {view === "plannings" && <PlanningsView plannings={plannings} currentId={planningId} onOpen={goToPlanning} onNew={() => { setNewPlanningTitle(""); setNewPlanningOpen(true); }} />}
         {view === "veille" && selected && (
           <VeilleDetail
             veille={selected} day={selectedDay} onDayChange={setSelectedDay} isAdmin={isAdmin} me={me}
@@ -673,9 +751,7 @@ function App() {
               <label style={{ fontSize: 12.5, color: "#9C9BBE", display: "block", marginBottom: 5 }}>Nom et prénom *</label>
               <input autoFocus={!me} value={form.nom} onChange={(e) => setForm({ ...form, nom: e.target.value })} placeholder="Ex : Marie Dupont" style={{ ...inputStyle, marginBottom: 13 }} />
               <label style={{ fontSize: 12.5, color: "#9C9BBE", display: "block", marginBottom: 5 }}>Email *</label>
-              <input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} placeholder="marie@exemple.com" style={{ ...inputStyle, marginBottom: 13 }} />
-              <label style={{ fontSize: 12.5, color: "#9C9BBE", display: "block", marginBottom: 5 }}>Téléphone (WhatsApp)</label>
-              <input type="tel" value={form.tel} onChange={(e) => setForm({ ...form, tel: e.target.value })} onKeyDown={(e) => e.key === "Enter" && confirmPositioning()} placeholder="+594 6XX XX XX XX" style={{ ...inputStyle, marginBottom: 21 }} />
+              <input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} onKeyDown={(e) => e.key === "Enter" && confirmPositioning()} placeholder="marie@exemple.com" style={{ ...inputStyle, marginBottom: 21 }} />
               <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
                 <button onClick={() => setPositioning(null)} style={btnGhost}>Annuler</button>
                 <button onClick={confirmPositioning} style={btnGold}>Confirmer</button>
@@ -705,9 +781,9 @@ function App() {
               <button onClick={() => downloadIcsMulti(buildEvent(confirmed.veille, confirmed.day, confirmed.slot), `veille-${confirmed.veille.id}.ics`)} style={{ ...btnGold, display: "flex", alignItems: "center", justifyContent: "center", gap: 7, width: "100%" }}>
                 <CalendarPlus size={15} /> Ajouter à mon calendrier
               </button>
-              <a href={mailtoConfirmation(confirmed.veille, confirmed.day, confirmed.slot, confirmed.person)} style={{ ...btnGhost, display: "flex", alignItems: "center", justifyContent: "center", gap: 7, textDecoration: "none", width: "100%" }}>
-                <Mail size={14} /> Recevoir la confirmation par mail
-              </a>
+              <button onClick={() => copyText(confirmationText(confirmed.veille, confirmed.day, confirmed.slot, confirmed.person), "Message copié — colle-le dans un mail ou un message")} style={{ ...btnGhost, display: "flex", alignItems: "center", justifyContent: "center", gap: 7, width: "100%" }}>
+                <Mail size={14} /> Copier le message de confirmation
+              </button>
               <button onClick={() => setConfirmed(null)} style={{ ...btnGhost, width: "100%", border: "none" }}>Fermer</button>
             </div>
           </div>
@@ -723,6 +799,21 @@ function App() {
             <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
               <button onClick={() => setAdminPromptOpen(false)} style={btnGhost}>Annuler</button>
               <button onClick={submitAdminCode} style={btnGold}>Valider</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ---------- New planning modal ---------- */}
+      {newPlanningOpen && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(10,10,26,0.76)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 58, padding: 18 }} onClick={() => setNewPlanningOpen(false)}>
+          <div onClick={(e) => e.stopPropagation()} style={{ background: "#1B1D3E", border: "1px solid #33355C", borderRadius: 14, padding: 24, maxWidth: 380, width: "100%" }}>
+            <div style={{ fontFamily: "Fraunces, serif", fontSize: 19, fontWeight: 600, marginBottom: 14 }}>Nouveau planning</div>
+            <label style={{ fontSize: 12.5, color: "#9C9BBE", display: "block", marginBottom: 5 }}>Titre</label>
+            <input autoFocus value={newPlanningTitle} onChange={(e) => setNewPlanningTitle(e.target.value)} onKeyDown={(e) => e.key === "Enter" && createPlanning()} placeholder="Ex : Veillée de Pâques 2027" style={{ ...inputStyle, marginBottom: 16 }} />
+            <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
+              <button onClick={() => setNewPlanningOpen(false)} style={btnGhost}>Annuler</button>
+              <button onClick={createPlanning} style={btnGold}>Créer</button>
             </div>
           </div>
         </div>
@@ -955,6 +1046,34 @@ function MineView({ mine, me, onCancel, onGoWeek }) {
   );
 }
 
+/* --------------------------- Plannings --------------------------- */
+function PlanningsView({ plannings, currentId, onOpen, onNew }) {
+  return (
+    <div style={{ maxWidth: 640, margin: "0 auto", padding: "30px 24px 70px" }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 22, flexWrap: "wrap", gap: 12 }}>
+        <h1 style={{ fontFamily: "Fraunces, serif", fontSize: 28, fontWeight: 600, margin: 0 }}>Plannings</h1>
+        <button onClick={onNew} style={btnGold}><span style={{ display: "flex", alignItems: "center", gap: 6 }}><Plus size={14} /> Nouveau planning</span></button>
+      </div>
+      {plannings === null && <div style={{ color: "#9C9BBE", fontSize: 13.5 }}>Chargement…</div>}
+      {plannings !== null && plannings.length === 0 && <div style={{ color: "#9C9BBE", fontSize: 13.5 }}>Aucun planning trouvé.</div>}
+      {plannings !== null && plannings.map((p) => (
+        <div key={p.id} onClick={() => onOpen(p.id)} style={{
+          display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12,
+          padding: "13px 16px", borderRadius: 10, marginBottom: 9, cursor: "pointer",
+          border: "1px solid " + (p.id === currentId ? "#E3A72E" : "#33355C"),
+          background: p.id === currentId ? "rgba(227,167,46,0.08)" : "#181A3D",
+        }}>
+          <div>
+            <div style={{ fontSize: 15, fontWeight: 600 }}>{p.title}{p.id === currentId && <span style={{ color: "#E3A72E", fontWeight: 700, fontSize: 11.5 }}> · actuel</span>}</div>
+            <div style={{ fontSize: 11.5, color: "#8688A8", marginTop: 2 }}>{p.id}</div>
+          </div>
+          <ChevronRight size={16} color="#8688A8" />
+        </div>
+      ))}
+    </div>
+  );
+}
+
 /* --------------------------- Stats --------------------------- */
 function StatsView({ veilles }) {
   const week = weekCoverage(veilles);
@@ -1166,10 +1285,9 @@ function VeilleDetail({
                           <Check size={12} color={c.fg} style={{ marginTop: 3, flexShrink: 0 }} />
                           <div style={{ minWidth: 0 }}>
                             <div style={{ overflow: "hidden", textOverflow: "ellipsis" }}>{p.nom}{isMe && <span style={{ color: "#E3A72E", fontSize: 11 }}> · toi</span>}</div>
-                            {isAdmin && (p.email || p.tel) && (
+                            {isAdmin && p.email && (
                               <div style={{ fontSize: 11, color: "#8688A8", marginTop: 1 }}>
-                                {p.email && <span style={{ display: "flex", alignItems: "center", gap: 4 }}><Mail size={9} /> {p.email}</span>}
-                                {p.tel && <span style={{ display: "flex", alignItems: "center", gap: 4 }}><Phone size={9} /> {p.tel}</span>}
+                                <span style={{ display: "flex", alignItems: "center", gap: 4 }}><Mail size={9} /> {p.email}</span>
                               </div>
                             )}
                           </div>
