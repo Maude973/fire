@@ -1,0 +1,1219 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Planning Fire — Veillons Ensemble</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%94%A5%3C/text%3E%3C/svg%3E">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@0,500;0,600;0,700&family=Inter:wght@400;500;600;700&display=swap">
+<style>
+  :root { color-scheme: dark; }
+  html, body { margin: 0; padding: 0; background: #12132B; min-height: 100%; }
+  #root { min-height: 100vh; }
+</style>
+<script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js"></script>
+<script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.26.3/babel.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/plain" id="app-source">const { useState, useEffect, useRef, useCallback } = React;
+
+/* ------------------------- inline icons ------------------------- */
+function IconBase({ children, size = 16, color = "currentColor", style, ...rest }) {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24"
+      fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+      style={style} {...rest}>
+      {children}
+    </svg>
+  );
+}
+function Clock(p) { return <IconBase {...p}><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3.5 2" /></IconBase>; }
+function Lock(p) { return <IconBase {...p}><rect x="4.5" y="11" width="15" height="9" rx="2" /><path d="M8 11V7.5a4 4 0 0 1 8 0V11" /></IconBase>; }
+function Unlock(p) { return <IconBase {...p}><rect x="4.5" y="11" width="15" height="9" rx="2" /><path d="M8 11V7.5a4 4 0 0 1 7.4-1.8" /></IconBase>; }
+function ChevronRight(p) { return <IconBase {...p}><path d="M9 5l7 7-7 7" /></IconBase>; }
+function ArrowLeft(p) { return <IconBase {...p}><path d="M20 12H4M10 6l-6 6 6 6" /></IconBase>; }
+function Settings(p) { return <IconBase {...p}><circle cx="12" cy="12" r="3" /><circle cx="12" cy="12" r="8" strokeDasharray="2.2 3.3" /></IconBase>; }
+function X(p) { return <IconBase {...p}><path d="M6 6l12 12M18 6L6 18" /></IconBase>; }
+function Plus(p) { return <IconBase {...p}><path d="M12 5v14M5 12h14" /></IconBase>; }
+function Trash2(p) { return <IconBase {...p}><path d="M4 7h16M9 7V5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2m-9 0 1 13a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-13" /><path d="M10 11v6M14 11v6" /></IconBase>; }
+function Copy(p) { return <IconBase {...p}><rect x="8.5" y="8.5" width="11" height="11" rx="2" /><path d="M5.5 15.5H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h8.5a2 2 0 0 1 2 2v.5" /></IconBase>; }
+function Printer(p) { return <IconBase {...p}><path d="M6 9V3h12v6" /><rect x="4" y="9" width="16" height="8" rx="1.5" /><path d="M6 15h12v6H6z" /></IconBase>; }
+function BookOpen(p) { return <IconBase {...p}><path d="M12 6c-1.8-1.4-4-2-6.5-2v13c2.5 0 4.7.6 6.5 2 1.8-1.4 4-2 6.5-2V4c-2.5 0-4.7.6-6.5 2Z" /><path d="M12 6v13" /></IconBase>; }
+function Check(p) { return <IconBase {...p}><path d="M5 12.5l4.5 4.5L19 7" /></IconBase>; }
+function CalendarDays(p) { return <IconBase {...p}><rect x="4" y="5.5" width="16" height="15" rx="2" /><path d="M4 10h16M8 3.5v3M16 3.5v3" /><path d="M8 14h.01M12 14h.01M16 14h.01M8 17.5h.01M12 17.5h.01" /></IconBase>; }
+function HomeIcon(p) { return <IconBase {...p}><path d="M4 11.5 12 4l8 7.5" /><path d="M6 10v9.5h12V10" /></IconBase>; }
+function CalendarPlus(p) { return <IconBase {...p}><rect x="4" y="5.5" width="16" height="15" rx="2" /><path d="M4 10h16M8 3.5v3M16 3.5v3" /><path d="M12 13v5M9.5 15.5h5" /></IconBase>; }
+function Mail(p) { return <IconBase {...p}><rect x="3.5" y="5.5" width="17" height="13" rx="2" /><path d="M4 6.5l8 6.5 8-6.5" /></IconBase>; }
+function Phone(p) { return <IconBase {...p}><path d="M6.5 4.5h3l1.5 4-2 1.7a12 12 0 0 0 5.3 5.3l1.7-2 4 1.5v3a1.5 1.5 0 0 1-1.6 1.5A16.5 16.5 0 0 1 5 5.9 1.5 1.5 0 0 1 6.5 4.5Z" /></IconBase>; }
+function Download(p) { return <IconBase {...p}><path d="M12 3.5v11M8 11l4 3.5 4-3.5" /><path d="M4.5 17v2a1.5 1.5 0 0 0 1.5 1.5h12A1.5 1.5 0 0 0 19.5 19v-2" /></IconBase>; }
+function Users(p) { return <IconBase {...p}><circle cx="9" cy="8.5" r="3" /><path d="M3 19v-1.2A4 4 0 0 1 7 13.8h4a4 4 0 0 1 4 4V19" /><path d="M16 8a3 3 0 1 1 1.3 5.7" /><path d="M21 19v-1.2a4 4 0 0 0-2.6-3.7" /></IconBase>; }
+function User(p) { return <IconBase {...p}><circle cx="12" cy="8.5" r="3.3" /><path d="M5 19.2v-1a5 5 0 0 1 5-5h4a5 5 0 0 1 5 5v1" /></IconBase>; }
+function AlertTriangle(p) { return <IconBase {...p}><path d="M12 4 2.5 20h19L12 4Z" /><path d="M12 10.5v4M12 17.3h.01" /></IconBase>; }
+function BarChart3(p) { return <IconBase {...p}><path d="M4 20V10M11 20V4M18 20v-7" /></IconBase>; }
+function LogOut(p) { return <IconBase {...p}><path d="M9 5H6a1.5 1.5 0 0 0-1.5 1.5v11A1.5 1.5 0 0 0 6 19h3" /><path d="M13 12h7.5M17.5 8.5 21 12l-3.5 3.5" /></IconBase>; }
+function Share2(p) { return <IconBase {...p}><circle cx="18" cy="5.5" r="2.3" /><circle cx="6" cy="12" r="2.3" /><circle cx="18" cy="18.5" r="2.3" /><path d="M8 10.8l8-4.4M8 13.2l8 4.4" /></IconBase>; }
+
+const LOGO_SRC = "data:image/png;base64,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";
+const DAYS = ["Dimanche", "Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi"];
+
+const THEME_DEFAULTS = [
+  { name: "Combat spirituel", theme: "Consécration personnelle", verset: "Consacrez-vous, et vous serez saints, car je suis saint.", ref: "Lévitique 11.44", objectifs: ["Prier pour la consécration personnelle", "Prier pour la sainteté de l'église"] },
+  { name: "Victoire", theme: "Restauration des familles", verset: "Moi et ma maison, nous servirons l'Éternel.", ref: "Josué 24.15", objectifs: ["Prier pour l'unité des foyers", "Prier pour les couples et les enfants"] },
+  { name: "Parole", theme: "Édification de l'église", verset: "Je bâtirai mon Église, et les portes du séjour des morts ne prévaudront point contre elle.", ref: "Matthieu 16.18", objectifs: ["Prier pour les responsables de l'église", "Prier pour l'unité du corps"] },
+  { name: "Croix", theme: "Les autorités spirituelles et civiles", verset: "Je recommande donc que l'on fasse des prières pour tous les hommes, pour les rois et pour tous ceux qui sont élevés en dignité.", ref: "1 Timothée 2.1-2", objectifs: ["Prier pour les dirigeants du pays", "Prier pour la sagesse des autorités spirituelles"] },
+  { name: "Proclamation", theme: "La jeunesse et la relève", verset: "Que personne ne méprise ta jeunesse ; mais sois un modèle pour les croyants.", ref: "1 Timothée 4.12", objectifs: ["Prier pour la jeunesse de l'église", "Prier pour la relève spirituelle"] },
+  { name: "Libération", theme: "Le salut des âmes", verset: "Il veut que tous les hommes soient sauvés et parviennent à la connaissance de la vérité.", ref: "1 Timothée 2.4", objectifs: ["Prier pour les âmes perdues", "Prier pour l'évangélisation"] },
+  { name: "Action de grâce", theme: "Renverser les autels, briser les résistances", verset: "Priez sans cesse.", ref: "1 Thessaloniciens 5.17", objectifs: ["Prier pour la percée spirituelle", "Prier contre toute résistance à l'œuvre de Dieu"] },
+  { name: "Enfants", theme: "Reconnaissance et louange", verset: "Rendez grâces en toutes choses, car c'est à votre égard la volonté de Dieu en Jésus-Christ.", ref: "1 Thessaloniciens 5.18", objectifs: ["Remercier Dieu pour Sa fidélité", "Prier avec un cœur de reconnaissance"] },
+];
+
+function buildDefaultVeilles() {
+  return THEME_DEFAULTS.map((t, i) => ({
+    id: i + 1, startHour: i * 3, name: t.name, theme: t.theme,
+    versets: [{ text: t.verset, ref: t.ref }], objectifs: t.objectifs,
+    duration: 60, conducteursRequis: 2, participants: {}, locked: {},
+  }));
+}
+
+const STORAGE_KEY = "veillons-ensemble-planning-v4";
+const ME_KEY = "veillons-ensemble-moi-v1";
+
+/* ---------------------------- helpers ---------------------------- */
+function fmt(mins) {
+  const m = ((mins % 1440) + 1440) % 1440;
+  return `${String(Math.floor(m / 60)).padStart(2, "0")}h${String(m % 60).padStart(2, "0")}`;
+}
+function slotsFor(v) {
+  const count = Math.round(180 / v.duration);
+  return Array.from({ length: count }, (_, i) => ({
+    index: i, startMin: v.startHour * 60 + i * v.duration, endMin: v.startHour * 60 + (i + 1) * v.duration,
+  }));
+}
+function getParticipants(v, day, si) {
+  const raw = (v.participants[day] && v.participants[day][si]) || [];
+  return raw.map((p) => (typeof p === "string" ? { nom: p, email: "", tel: "" } : p));
+}
+function getLocked(v, day, si) { return !!(v.locked[day] && v.locked[day][si]); }
+function openCountFor(v, day) {
+  const slots = slotsFor(v);
+  let n = 0;
+  for (const s of slots) { if (getLocked(v, day, s.index)) break; n = s.index + 1; }
+  return n;
+}
+function requiredFor(v) { return v.conducteursRequis || 1; }
+function slotStatus(v, day, si) {
+  if (getLocked(v, day, si)) return "locked";
+  const n = getParticipants(v, day, si).length;
+  if (n === 0) return "available";
+  return n < requiredFor(v) ? "partial" : "covered";
+}
+function veilleCoverageRatio(v, day) {
+  const slots = slotsFor(v);
+  if (!slots.length) return 0;
+  let covered = 0;
+  slots.forEach((s) => { covered += Math.min(getParticipants(v, day, s.index).length / requiredFor(v), 1) * v.duration; });
+  return covered / 180;
+}
+function globalCoverage(veilles, day) {
+  let t = 0; veilles.forEach((v) => (t += veilleCoverageRatio(v, day) * 180));
+  return t / (veilles.length * 180 || 1);
+}
+function weekCoverage(veilles) {
+  let t = 0; DAYS.forEach((_, d) => (t += globalCoverage(veilles, d)));
+  return t / DAYS.length;
+}
+function findGaps(veilles, dayFilter = null) {
+  const gaps = [];
+  veilles.forEach((v) => {
+    DAYS.forEach((d, di) => {
+      if (dayFilter !== null && di !== dayFilter) return;
+      slotsFor(v).forEach((s) => {
+        const st = slotStatus(v, di, s.index);
+        if (st === "available" || st === "partial") {
+          gaps.push({ veille: v, day: di, slot: s, manque: requiredFor(v) - getParticipants(v, di, s.index).length });
+        }
+      });
+    });
+  });
+  return gaps;
+}
+function myBookings(veilles, me) {
+  if (!me || !me.email) return [];
+  const out = [];
+  veilles.forEach((v) => DAYS.forEach((_, di) => slotsFor(v).forEach((s) => {
+    getParticipants(v, di, s.index).forEach((p, i) => {
+      if (p.email && p.email.toLowerCase() === me.email.toLowerCase()) out.push({ veille: v, day: di, slot: s, idx: i });
+    });
+  })));
+  return out.sort((a, b) => a.day - b.day || a.slot.startMin - b.slot.startMin);
+}
+
+const VEILLE_COLORS = ["#E3A72E", "#4C9A5B", "#2C6E8C", "#9B2F5C", "#6B6B1F", "#B1552C", "#2f6f6b", "#7c5cbf"];
+
+const STATUS_COLORS = {
+  available: { fg: "#C4482E", bg: "rgba(196,72,46,0.16)", label: "Disponible" },
+  partial: { fg: "#E0A83A", bg: "rgba(224,168,58,0.18)", label: "Places restantes" },
+  covered: { fg: "#4C9A5B", bg: "rgba(76,154,91,0.18)", label: "Complet" },
+  locked: { fg: "#8688A8", bg: "rgba(91,93,122,0.18)", label: "Verrouillé" },
+};
+
+/* ------------------------ calendar / ics ------------------------ */
+function nextDateFor(dayIndex, startMin) {
+  const now = new Date(), d = new Date(now);
+  d.setDate(now.getDate() + ((dayIndex - now.getDay() + 7) % 7));
+  d.setHours(Math.floor(startMin / 60), startMin % 60, 0, 0);
+  if (d <= now) d.setDate(d.getDate() + 7);
+  return d;
+}
+function icsStamp(date) {
+  const p = (n) => String(n).padStart(2, "0");
+  return `${date.getUTCFullYear()}${p(date.getUTCMonth() + 1)}${p(date.getUTCDate())}T${p(date.getUTCHours())}${p(date.getUTCMinutes())}00Z`;
+}
+function buildEvent(v, day, slot) {
+  const start = nextDateFor(day, slot.startMin);
+  const end = new Date(start.getTime() + v.duration * 60000);
+  return [
+    "BEGIN:VEVENT",
+    `UID:pf-${v.id}-${day}-${slot.index}-${Math.random().toString(36).slice(2)}@icc-guyane`,
+    `DTSTAMP:${icsStamp(new Date())}`, `DTSTART:${icsStamp(start)}`, `DTEND:${icsStamp(end)}`,
+    `SUMMARY:Veille ${v.id} — ${v.name}`,
+    `DESCRIPTION:Chaine de priere ICC Guyane. Theme : ${v.theme}.`,
+    "BEGIN:VALARM", "TRIGGER:-PT1H", "ACTION:DISPLAY",
+    `DESCRIPTION:Ton temps de priere commence dans 1 heure — Veille ${v.id} ${v.name}`,
+    "END:VALARM", "END:VEVENT",
+  ];
+}
+function downloadIcsMulti(events, filename) {
+  const lines = ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//ICC Guyane//Planning Fire//FR", "CALSCALE:GREGORIAN", ...events, "END:VCALENDAR"];
+  const blob = new Blob([lines.join("\r\n")], { type: "text/calendar;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a"); a.href = url; a.download = filename; a.click();
+  URL.revokeObjectURL(url);
+}
+function mailtoConfirmation(v, day, slot, person) {
+  const start = nextDateFor(day, slot.startMin);
+  const dateStr = start.toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" });
+  const subject = `Confirmation — Veille ${v.id} ${v.name}`;
+  const body = [`Bonjour ${person.nom},`, "", "Ton engagement dans la chaine de priere est confirme :", "",
+    `Date : ${dateStr}`, `Horaire : ${fmt(slot.startMin)} - ${fmt(slot.endMin)}`,
+    `Veille ${v.id} — ${v.name}`, `Theme : ${v.theme}`, "",
+    `"${v.versets[0]?.text || ""}" (${v.versets[0]?.ref || ""})`, "",
+    "Pense a ajouter ce creneau a ton calendrier pour recevoir un rappel 1h avant.", "",
+    "ICC Guyane — Planning Fire"].join("\n");
+  return `mailto:${person.email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+}
+
+/* --------------------------- wheel --------------------------- */
+function polar(cx, cy, r, a) { const rad = ((a - 90) * Math.PI) / 180; return { x: cx + r * Math.cos(rad), y: cy + r * Math.sin(rad) }; }
+function arcPath(cx, cy, ro, ri, a0, a1) {
+  const p0 = polar(cx, cy, ro, a0), p1 = polar(cx, cy, ro, a1), p2 = polar(cx, cy, ri, a1), p3 = polar(cx, cy, ri, a0);
+  const l = a1 - a0 > 180 ? 1 : 0;
+  return `M ${p0.x} ${p0.y} A ${ro} ${ro} 0 ${l} 1 ${p1.x} ${p1.y} L ${p2.x} ${p2.y} A ${ri} ${ri} 0 ${l} 0 ${p3.x} ${p3.y} Z`;
+}
+function PrayerWheel({ veilles, day, onSelect, size = 340 }) {
+  const cx = size / 2, cy = size / 2, ro = size * 0.43, ri = size * 0.27;
+  const overall = globalCoverage(veilles, day);
+  return (
+    <svg viewBox={`0 0 ${size} ${size}`} width={size} height={size} role="img" aria-label="Roue des 24 heures">
+      {[0, 3, 6, 9, 12, 15, 18, 21].map((h) => {
+        const p = polar(cx, cy, ro + 15, (h / 24) * 360);
+        return <text key={h} x={p.x} y={p.y} fill="#8688A8" fontSize={size * 0.032} textAnchor="middle" dominantBaseline="middle" style={{ fontFamily: "Inter, sans-serif" }}>{h}h</text>;
+      })}
+      {veilles.map((v, vi) => {
+        const a0 = (v.startHour / 24) * 360, a1 = ((v.startHour + 3) / 24) * 360;
+        const r = veilleCoverageRatio(v, day);
+        const color = VEILLE_COLORS[vi % VEILLE_COLORS.length];
+        const lp = polar(cx, cy, (ro + ri) / 2, (a0 + a1) / 2);
+        // filled portion grows outward from the inner edge, proportional to coverage
+        const rFill = ri + (ro - ri) * r;
+        return (
+          <g key={v.id} style={{ cursor: "pointer" }} onClick={() => onSelect(v.id)}>
+            {/* faded base = the whole veille, in its own colour */}
+            <path d={arcPath(cx, cy, ro, ri, a0 + 1.2, a1 - 1.2)} fill={color} opacity={0.2} />
+            {/* solid portion = what is actually covered */}
+            {r > 0 && <path d={arcPath(cx, cy, rFill, ri, a0 + 1.2, a1 - 1.2)} fill={color} opacity={0.95} />}
+            <path d={arcPath(cx, cy, ro, ri, a0 + 1.2, a1 - 1.2)} fill="none" stroke={color} strokeWidth="1.2" opacity={0.75} />
+            <text x={lp.x} y={lp.y} fill={r > 0.45 ? "#12132B" : color} fontSize={size * 0.036} fontWeight="700" textAnchor="middle" dominantBaseline="middle" style={{ pointerEvents: "none", fontFamily: "Inter, sans-serif" }}>{v.id}</text>
+          </g>
+        );
+      })}
+      <circle cx={cx} cy={cy} r={ri - 5} fill="#181A3D" stroke="#33355C" />
+      <text x={cx} y={cy - 9} textAnchor="middle" fill="#E3A72E" fontSize={size * 0.1} fontWeight="700" style={{ fontFamily: "Fraunces, serif" }}>{Math.round(overall * 100)}%</text>
+      <text x={cx} y={cy + 14} textAnchor="middle" fill="#9C9BBE" fontSize={size * 0.03} style={{ fontFamily: "Inter, sans-serif" }}>temps couvert</text>
+    </svg>
+  );
+}
+
+function DaySelector({ day, onChange }) {
+  return (
+    <div className="no-print" style={{ display: "flex", gap: 6, flexWrap: "wrap", justifyContent: "center" }}>
+      {DAYS.map((d, i) => (
+        <button key={d} onClick={() => onChange(i)} style={{
+          padding: "7px 14px", borderRadius: 999, fontSize: 13, cursor: "pointer",
+          border: "1px solid " + (day === i ? "#E3A72E" : "#33355C"),
+          background: day === i ? "rgba(227,167,46,0.14)" : "transparent",
+          color: day === i ? "#E3A72E" : "#9C9BBE", fontWeight: day === i ? 700 : 500,
+        }}>{d}</button>
+      ))}
+    </div>
+  );
+}
+
+const btnGhost = { padding: "9px 16px", borderRadius: 8, border: "1px solid #33355C", background: "transparent", color: "#9C9BBE", cursor: "pointer", fontSize: 13.5 };
+const btnGold = { padding: "9px 18px", borderRadius: 8, border: "none", background: "#E3A72E", color: "#12132B", cursor: "pointer", fontSize: 13.5, fontWeight: 700 };
+const inputStyle = { width: "100%", padding: "10px 12px", borderRadius: 8, border: "1px solid #33355C", background: "#12132B", color: "#F3F1E9", fontSize: 14 };
+const navBtn = (active) => ({
+  display: "flex", alignItems: "center", gap: 6, fontSize: 13, padding: "8px 13px", borderRadius: 8,
+  border: "1px solid " + (active ? "#E3A72E" : "#33355C"),
+  background: active ? "rgba(227,167,46,0.14)" : "transparent",
+  color: active ? "#E3A72E" : "#9C9BBE", cursor: "pointer",
+});
+
+/* ---------------- shared persistence (Supabase) ---------------- */
+/* 1. Dans ton projet Supabase, ouvre "SQL Editor" et exécute :
+
+     create table if not exists public.planning_state (
+       id int primary key default 1,
+       veilles jsonb not null,
+       max_par_personne int not null default 0
+     );
+     alter table public.planning_state enable row level security;
+     create policy "public read" on public.planning_state for select using (true);
+     create policy "public insert" on public.planning_state for insert with check (true);
+     create policy "public update" on public.planning_state for update using (true) with check (true);
+     insert into public.planning_state (id, veilles, max_par_personne)
+       values (1, '[]'::jsonb, 0) on conflict (id) do nothing;
+     alter publication supabase_realtime add table public.planning_state;
+
+   2. Dans "Project Settings" > "API", copie "Project URL" et la clé "anon public"
+      ci-dessous à la place des valeurs "VOTRE_...".
+*/
+const SUPABASE_URL = "VOTRE_SUPABASE_URL";
+const SUPABASE_ANON_KEY = "VOTRE_SUPABASE_ANON_KEY";
+const ADMIN_PIN = "feu2026";
+
+let __sb = null;
+function getSupabase() {
+  if (__sb) return __sb;
+  if (SUPABASE_URL === "VOTRE_SUPABASE_URL") return null; // not configured yet
+  try {
+    __sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    return __sb;
+  } catch (e) { console.error(e); return null; }
+}
+
+/* ============================ APP ============================ */
+function App() {
+  const [veilles, setVeilles] = useState(buildDefaultVeilles());
+  const [maxParPersonne, setMaxParPersonne] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [notConfigured, setNotConfigured] = useState(false);
+  const [view, setView] = useState("home");
+  const [selectedId, setSelectedId] = useState(null);
+  const [selectedDay, setSelectedDay] = useState(() => new Date().getDay());
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [readOnly, setReadOnly] = useState(false);
+  const [me, setMe] = useState(null);
+  const [positioning, setPositioning] = useState(null);
+  const [form, setForm] = useState({ nom: "", email: "", tel: "" });
+  const [confirmed, setConfirmed] = useState(null);
+  const [toast, setToast] = useState("");
+  const saveTimer = useRef(null);
+  const pendingRef = useRef(null);
+  const applyingRemote = useRef(false);
+
+  useEffect(() => {
+    try {
+      const raw = window.localStorage.getItem(ME_KEY);
+      if (raw) setMe(JSON.parse(raw));
+    } catch (e) {}
+  }, []);
+
+  useEffect(() => {
+    const sb = getSupabase();
+    if (!sb) { setNotConfigured(true); setLoading(false); return; }
+    let cancelled = false;
+
+    const applyRow = (row) => {
+      if (!row) return;
+      applyingRemote.current = true;
+      if (Array.isArray(row.veilles)) setVeilles(row.veilles);
+      if (typeof row.max_par_personne === "number") setMaxParPersonne(row.max_par_personne);
+      applyingRemote.current = false;
+    };
+
+    (async () => {
+      const { data, error } = await sb.from("planning_state").select("*").eq("id", 1).single();
+      if (cancelled) return;
+      if (error || !data || !Array.isArray(data.veilles) || data.veilles.length === 0) {
+        // first run ever (or empty row): seed with the defaults
+        const { data: seeded } = await sb.from("planning_state")
+          .upsert({ id: 1, veilles: buildDefaultVeilles(), max_par_personne: 0 })
+          .select().single();
+        if (!cancelled) applyRow(seeded);
+      } else {
+        applyRow(data);
+      }
+      if (!cancelled) setLoading(false);
+    })();
+
+    const channel = sb
+      .channel("planning_state_changes")
+      .on("postgres_changes", { event: "*", schema: "public", table: "planning_state", filter: "id=eq.1" }, (payload) => {
+        if (payload.new) applyRow(payload.new);
+      })
+      .subscribe();
+
+    return () => { cancelled = true; sb.removeChannel(channel); };
+  }, []);
+
+  const persist = useCallback((nextV, nextMax) => {
+    pendingRef.current = { veilles: nextV, maxParPersonne: nextMax };
+    clearTimeout(saveTimer.current);
+    saveTimer.current = setTimeout(async () => {
+      const toSend = pendingRef.current;
+      pendingRef.current = null;
+      const sb = getSupabase();
+      if (!sb) { setNotConfigured(true); return; }
+      const { error } = await sb.from("planning_state")
+        .update({ veilles: toSend.veilles, max_par_personne: toSend.maxParPersonne })
+        .eq("id", 1);
+      if (error) {
+        if (error.code === "42501" || /permission|policy/i.test(error.message || "")) {
+          setReadOnly(true);
+          showToast("Lecture seule : les règles Supabase n'autorisent pas l'écriture");
+        } else {
+          showToast("La sauvegarde a échoué, réessaie");
+        }
+      }
+    }, 400);
+  }, []);
+
+  const updateVeilles = (up) => setVeilles((prev) => {
+    const next = typeof up === "function" ? up(prev) : up;
+    persist(next, maxParPersonne);
+    return next;
+  });
+  const updateMax = (n) => { setMaxParPersonne(n); persist(veilles, n); };
+
+  const saveMe = async (person) => {
+    setMe(person);
+    try { window.localStorage.setItem(ME_KEY, JSON.stringify(person)); } catch (e) {}
+  };
+  const forgetMe = async () => {
+    setMe(null);
+    try { window.localStorage.removeItem(ME_KEY); } catch (e) {}
+    showToast("Identité oubliée sur cet appareil");
+  };
+
+  const [adminPromptOpen, setAdminPromptOpen] = useState(false);
+  const [adminCodeInput, setAdminCodeInput] = useState("");
+  const [confirmDialog, setConfirmDialog] = useState(null); // { message, onConfirm }
+  const askConfirm = (message, onConfirm) => setConfirmDialog({ message, onConfirm });
+
+  const tryEnableAdmin = () => {
+    if (isAdmin) { setIsAdmin(false); return; }
+    setAdminCodeInput("");
+    setAdminPromptOpen(true);
+  };
+  const submitAdminCode = () => {
+    if (adminCodeInput.trim() === ADMIN_PIN) { setIsAdmin(true); setAdminPromptOpen(false); }
+    else showToast("Code incorrect");
+  };
+
+  const showToast = (m) => { setToast(m); setTimeout(() => setToast(""), 2600); };
+  const selected = veilles.find((v) => v.id === selectedId);
+  const mine = myBookings(veilles, me);
+
+  const openPositioning = (vId, day, si) => {
+    if (maxParPersonne > 0 && me && mine.length >= maxParPersonne) {
+      showToast(`Limite atteinte : ${maxParPersonne} créneaux par personne`);
+      return;
+    }
+    setPositioning({ veilleId: vId, day, slotIndex: si });
+    setForm(me ? { ...me } : { nom: "", email: "", tel: "" });
+  };
+
+  const confirmPositioning = () => {
+    if (!form.nom.trim() || !form.email.trim()) { showToast("Le nom et l'email sont obligatoires"); return; }
+    const { veilleId, day, slotIndex } = positioning;
+    const person = { nom: form.nom.trim(), email: form.email.trim(), tel: form.tel.trim() };
+    const v0 = veilles.find((x) => x.id === veilleId);
+    if (getParticipants(v0, day, slotIndex).some((p) => p.email.toLowerCase() === person.email.toLowerCase())) {
+      showToast("Tu es déjà inscrit sur ce créneau"); return;
+    }
+    updateVeilles((prev) => prev.map((v) => {
+      if (v.id !== veilleId) return v;
+      const dp = { ...(v.participants[day] || {}) };
+      dp[slotIndex] = [...getParticipants(v, day, slotIndex), person];
+      return { ...v, participants: { ...v.participants, [day]: dp } };
+    }));
+    saveMe(person);
+    setConfirmed({ veille: v0, day, slot: slotsFor(v0)[slotIndex], person });
+    setPositioning(null);
+  };
+
+  const removeParticipant = (vId, day, si, idx) => {
+    updateVeilles((prev) => prev.map((v) => {
+      if (v.id !== vId) return v;
+      const dp = { ...(v.participants[day] || {}) };
+      dp[si] = getParticipants(v, day, si).filter((_, i) => i !== idx);
+      return { ...v, participants: { ...v.participants, [day]: dp } };
+    }));
+  };
+  const cancelMine = (b) => {
+    askConfirm(`Annuler ton créneau du ${DAYS[b.day]} ${fmt(b.slot.startMin)} ?`, () => {
+      removeParticipant(b.veille.id, b.day, b.slot.index, b.idx);
+      showToast("Créneau annulé");
+    });
+  };
+
+  const toggleLock = (vId, day, si) => updateVeilles((prev) => prev.map((v) => {
+    if (v.id !== vId) return v;
+    const dl = { ...(v.locked[day] || {}) };
+    dl[si] = !dl[si];
+    return { ...v, locked: { ...v.locked, [day]: dl } };
+  }));
+
+  const setOpenCount = (vId, day, n) => updateVeilles((prev) => prev.map((v) => {
+    if (v.id !== vId) return v;
+    const total = slotsFor(v).length;
+    const dl = {};
+    for (let i = 0; i < total; i++) { if (i >= n) dl[i] = true; }
+    return { ...v, locked: { ...v.locked, [day]: dl } };
+  }));
+
+  const editVeille = (id, patch) => updateVeilles((p) => p.map((v) => (v.id === id ? { ...v, ...patch } : v)));
+  const changeDuration = (id, d) => {
+    askConfirm("Changer le format des créneaux réinitialise les engagements de cette veille. Continuer ?", () => {
+      updateVeilles((p) => p.map((v) => (v.id === id ? { ...v, duration: d, participants: {}, locked: {} } : v)));
+    });
+  };
+  const cancelMineSlot = (veilleId, day, slotIndex, idx) => {
+    askConfirm("Annuler ton créneau ?", () => removeParticipant(veilleId, day, slotIndex, idx));
+  };
+  const setAllRequired = (n) => updateVeilles((p) => p.map((v) => ({ ...v, conducteursRequis: n })));
+  const addObjectif = (id) => updateVeilles((p) => p.map((v) => (v.id === id ? { ...v, objectifs: [...v.objectifs, "Nouveau sujet"] } : v)));
+  const removeObjectif = (id, i) => updateVeilles((p) => p.map((v) => (v.id === id ? { ...v, objectifs: v.objectifs.filter((_, j) => j !== i) } : v)));
+  const editObjectif = (id, i, t) => updateVeilles((p) => p.map((v) => (v.id === id ? { ...v, objectifs: v.objectifs.map((o, j) => (j === i ? t : o)) } : v)));
+
+  const copyText = (txt, okMsg) => navigator.clipboard?.writeText(txt).then(() => showToast(okMsg), () => showToast("Copie impossible"));
+
+  const shareVeille = (v) => {
+    const r = Math.round(veilleCoverageRatio(v, selectedDay) * 100);
+    copyText(`🔥 VEILLONS ENSEMBLE\n🙏 Veille ${v.id} — ${v.name}\n📅 ${DAYS[selectedDay]}\n🕐 ${fmt(v.startHour * 60)} – ${fmt((v.startHour + 3) * 60)}\nThème : ${v.theme}\n📖 ${v.versets[0]?.text} (${v.versets[0]?.ref})\n\nCouverture : ${r}%\n👉 Rejoins la chaîne de prière.`, "Message copié");
+  };
+
+  const shareDay = (di) => {
+    const gaps = findGaps(veilles, di);
+    if (!gaps.length) { copyText(`🙌 ${DAYS[di]} : la chaîne de prière est complète, merci à tous !\n\nICC Guyane — Planning Fire`, "Message copié"); return; }
+    const lines = gaps.slice(0, 20).map((g) => `🔴 ${fmt(g.slot.startMin)}–${fmt(g.slot.endMin)} — Veille ${g.veille.id} ${g.veille.name} (${g.manque} place${g.manque > 1 ? "s" : ""})`);
+    copyText(`🔥 VEILLONS ENSEMBLE — ${DAYS[di].toUpperCase()}\n\nIl reste ${gaps.length} créneau${gaps.length > 1 ? "x" : ""} à couvrir :\n\n${lines.join("\n")}${gaps.length > 20 ? "\n…" : ""}\n\n👉 Positionne-toi sur le planning.`, "Message du jour copié");
+  };
+
+  const shareAllGaps = () => {
+    const gaps = findGaps(veilles);
+    if (!gaps.length) { copyText("🙌 La chaîne de prière est complète pour toute la semaine !", "Message copié"); return; }
+    const byDay = {};
+    gaps.forEach((g) => { (byDay[g.day] = byDay[g.day] || []).push(g); });
+    const blocks = Object.keys(byDay).sort().map((d) =>
+      `📅 ${DAYS[d]}\n` + byDay[d].slice(0, 8).map((g) => `  🔴 ${fmt(g.slot.startMin)}–${fmt(g.slot.endMin)} (V${g.veille.id})`).join("\n") + (byDay[d].length > 8 ? `\n  … +${byDay[d].length - 8}` : "")
+    );
+    copyText(`🔥 VEILLONS ENSEMBLE\n\n${gaps.length} créneaux restent à couvrir cette semaine :\n\n${blocks.join("\n\n")}\n\n👉 Rejoins la chaîne de prière.`, "Liste des trous copiée");
+  };
+
+  const exportContacts = () => {
+    const rows = [["Jour", "Veille", "Horaire", "Nom", "Email", "Telephone"]];
+    veilles.forEach((v) => DAYS.forEach((d, di) => slotsFor(v).forEach((s) =>
+      getParticipants(v, di, s.index).forEach((p) => rows.push([d, `Veille ${v.id} ${v.name}`, `${fmt(s.startMin)}-${fmt(s.endMin)}`, p.nom, p.email, p.tel]))
+    )));
+    if (rows.length === 1) { showToast("Aucun conducteur inscrit"); return; }
+    const csv = rows.map((r) => r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(";")).join("\n");
+    const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a"); a.href = url; a.download = "conducteurs-planning-fire.csv"; a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const commonRequired = veilles.every((v) => requiredFor(v) === requiredFor(veilles[0])) ? requiredFor(veilles[0]) : null;
+
+  if (notConfigured) {
+    return (
+      <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#12132B", color: "#F3F1E9", fontFamily: "Inter, sans-serif", padding: 30, textAlign: "center" }}>
+        <div style={{ maxWidth: 480 }}>
+          <div style={{ fontFamily: "Fraunces, serif", fontSize: 22, fontWeight: 600, marginBottom: 12 }}>Configuration requise</div>
+          <div style={{ color: "#9C9BBE", fontSize: 14.5, lineHeight: 1.6 }}>
+            La base de données Supabase n'est pas encore configurée. Ouvre le fichier et remplace les valeurs
+            « VOTRE_... » de <code>SUPABASE_URL</code> et <code>SUPABASE_ANON_KEY</code> par celles de ton projet Supabase.
+          </div>
+        </div>
+      </div>
+    );
+  }
+  if (loading) {
+    return <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#12132B", color: "#9C9BBE", fontFamily: "Inter, sans-serif" }}>Chargement du planning…</div>;
+  }
+
+  return (
+    <div style={{ background: "#12132B", minHeight: "100%", fontFamily: "Inter, sans-serif", color: "#F3F1E9" }}>
+      <style>{`
+        * { box-sizing: border-box; }
+        input, textarea, select { font-family: inherit; }
+        ::selection { background: #E3A72E; color: #12132B; }
+        @media print {
+          .no-print { display: none !important; }
+          body, .app-root { background: #fff !important; color: #111 !important; }
+          .print-table { border-color: #999 !important; }
+          .print-table th, .print-table td { border: 1px solid #bbb !important; }
+          .print-cell { border: 1px solid #999 !important; color: #111 !important; background: #fff !important; }
+          .print-cell-free { background: #fde8e4 !important; }
+          .print-cell-full { background: #e6f2e9 !important; }
+          .print-head { background: #eee !important; color: #111 !important; }
+          h1, h2, .print-dark { color: #111 !important; }
+          @page { size: A4 landscape; margin: 10mm; }
+        }
+      `}</style>
+
+      <div className="app-root">
+        {/* ---------- Header ---------- */}
+        <div className="no-print" style={{ borderBottom: "1px solid #262852", padding: "16px 22px", display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 13 }}>
+            <img src={LOGO_SRC} alt="ICC Guyane" style={{ height: 38, filter: "brightness(0) invert(1)" }} />
+            <div>
+              <div style={{ fontFamily: "Fraunces, serif", fontWeight: 700, fontSize: 18.5 }}>Planning Fire</div>
+              <div style={{ fontSize: 11.5, color: "#9C9BBE" }}>Une chaîne de prière qui ne s'arrête jamais</div>
+            </div>
+          </div>
+          <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+            <button onClick={() => setView("home")} style={navBtn(view === "home" || view === "veille")}><HomeIcon size={14} /> Accueil</button>
+            <button onClick={() => setView("week")} style={navBtn(view === "week")}><CalendarDays size={14} /> Semaine</button>
+            <button onClick={() => setView("mine")} style={navBtn(view === "mine")}><User size={14} /> Mes créneaux{mine.length > 0 && <span style={{ background: "#E3A72E", color: "#12132B", borderRadius: 999, padding: "0 6px", fontSize: 11, fontWeight: 700 }}>{mine.length}</span>}</button>
+            {isAdmin && <button onClick={() => setView("stats")} style={navBtn(view === "stats")}><BarChart3 size={14} /> Stats</button>}
+            <button onClick={tryEnableAdmin} style={navBtn(isAdmin)}><Settings size={14} /> Organisateur</button>
+          </div>
+        </div>
+
+        {/* ---------- Identity bar ---------- */}
+        {me && (
+          <div className="no-print" style={{ background: "#181A3D", borderBottom: "1px solid #262852", padding: "9px 22px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap", fontSize: 12.5 }}>
+            <span style={{ color: "#9C9BBE", display: "flex", alignItems: "center", gap: 7 }}>
+              <User size={13} color="#E3A72E" /> Connecté comme <strong style={{ color: "#F3F1E9" }}>{me.nom}</strong>
+              {maxParPersonne > 0 && <span style={{ color: "#8688A8" }}>· {mine.length}/{maxParPersonne} créneaux</span>}
+            </span>
+            <button onClick={forgetMe} style={{ background: "none", border: "none", color: "#8688A8", cursor: "pointer", display: "flex", alignItems: "center", gap: 5, fontSize: 12.5 }}><LogOut size={12} /> Ce n'est pas moi</button>
+          </div>
+        )}
+
+        {/* ---------- Read-only notice ---------- */}
+        {readOnly && (
+          <div className="no-print" style={{ background: "rgba(196,72,46,0.12)", borderBottom: "1px solid #262852", padding: "9px 22px", fontSize: 12.5, color: "#E0A83A", textAlign: "center" }}>
+            Lecture seule sur cet appareil : les positionnements ne peuvent pas être enregistrés pour tout le monde ici. Demande à l'organisateur de t'ajouter en modification sur la page.
+          </div>
+        )}
+
+        {/* ---------- Admin bar ---------- */}
+        {isAdmin && (
+          <div className="no-print" style={{ background: "rgba(227,167,46,0.07)", borderBottom: "1px solid #262852", padding: "11px 22px", display: "flex", alignItems: "center", gap: 20, flexWrap: "wrap", fontSize: 12.5, color: "#9C9BBE" }}>
+            <span style={{ display: "flex", alignItems: "center", gap: 7 }}>
+              <Users size={13} /> Conducteurs / créneau (toutes veilles)
+              {[1, 2, 3].map((n) => (
+                <button key={n} onClick={() => setAllRequired(n)} style={{ padding: "3px 10px", borderRadius: 999, fontSize: 12, cursor: "pointer", border: "1px solid " + (commonRequired === n ? "#E3A72E" : "#33355C"), background: commonRequired === n ? "rgba(227,167,46,0.16)" : "transparent", color: commonRequired === n ? "#E3A72E" : "#9C9BBE", fontWeight: commonRequired === n ? 700 : 500 }}>{n}</button>
+              ))}
+            </span>
+            <span style={{ display: "flex", alignItems: "center", gap: 7 }}>
+              Max créneaux / personne
+              <input type="number" min={0} max={50} value={maxParPersonne} onChange={(e) => updateMax(Math.max(0, parseInt(e.target.value) || 0))} style={{ width: 52, background: "#12132B", border: "1px solid #33355C", borderRadius: 6, color: "#F3F1E9", padding: "3px 7px", fontSize: 12.5 }} />
+              <span style={{ color: "#8688A8" }}>{maxParPersonne === 0 ? "(illimité)" : ""}</span>
+            </span>
+            <button onClick={exportContacts} style={{ ...btnGhost, padding: "5px 11px", fontSize: 12.5, display: "flex", alignItems: "center", gap: 6 }}><Download size={12} /> Exporter contacts</button>
+            <button onClick={shareAllGaps} style={{ ...btnGhost, padding: "5px 11px", fontSize: 12.5, display: "flex", alignItems: "center", gap: 6 }}><Share2 size={12} /> Partager les trous</button>
+          </div>
+        )}
+
+        {view === "home" && <Home veilles={veilles} day={selectedDay} onDayChange={setSelectedDay} onSelect={(id) => { setSelectedId(id); setView("veille"); }} onShareDay={shareDay} />}
+        {view === "week" && <WeekView veilles={veilles} isAdmin={isAdmin} onPosition={openPositioning} onSelectVeille={(id) => { setSelectedId(id); setView("veille"); }} onShareAllGaps={shareAllGaps} />}
+        {view === "mine" && <MineView mine={mine} me={me} onCancel={cancelMine} onGoWeek={() => setView("week")} />}
+        {view === "stats" && <StatsView veilles={veilles} />}
+        {view === "veille" && selected && (
+          <VeilleDetail
+            veille={selected} day={selectedDay} onDayChange={setSelectedDay} isAdmin={isAdmin} me={me}
+            onBack={() => setView("home")} onOpenPositioning={openPositioning}
+            onRemoveParticipant={removeParticipant} onToggleLock={toggleLock} onCancelMine={cancelMineSlot} onSetOpenCount={setOpenCount}
+            onEdit={(p) => editVeille(selected.id, p)} onChangeDuration={(d) => changeDuration(selected.id, d)}
+            onAddObjectif={() => addObjectif(selected.id)} onRemoveObjectif={(i) => removeObjectif(selected.id, i)}
+            onEditObjectif={(i, t) => editObjectif(selected.id, i, t)} onShare={() => shareVeille(selected)}
+          />
+        )}
+      </div>
+
+      {/* ---------- Booking modal ---------- */}
+      {positioning && (() => {
+        const v = veilles.find((x) => x.id === positioning.veilleId);
+        const s = slotsFor(v)[positioning.slotIndex];
+        const taken = getParticipants(v, positioning.day, positioning.slotIndex).length;
+        const req = requiredFor(v);
+        return (
+          <div style={{ position: "fixed", inset: 0, background: "rgba(10,10,26,0.76)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 50, padding: 18, overflowY: "auto" }} onClick={() => setPositioning(null)}>
+            <div onClick={(e) => e.stopPropagation()} style={{ background: "#1B1D3E", border: "1px solid #33355C", borderRadius: 14, padding: 26, maxWidth: 400, width: "100%" }}>
+              <div style={{ fontFamily: "Fraunces, serif", fontSize: 21, fontWeight: 600, marginBottom: 8 }}>Réserver ce créneau</div>
+              <div style={{ fontSize: 13.5, color: "#9C9BBE", marginBottom: 5, lineHeight: 1.6 }}>
+                📅 {DAYS[positioning.day]}<br />🔥 Veille {v.id} — {v.name}<br />🕐 {fmt(s.startMin)} – {fmt(s.endMin)}
+              </div>
+              <div style={{ fontSize: 12.5, color: "#E3A72E", marginBottom: 18 }}>{taken} / {req} conducteur{req > 1 ? "s" : ""} inscrit{taken > 1 ? "s" : ""}</div>
+
+              {me && (
+                <div style={{ background: "rgba(76,154,91,0.1)", border: "1px solid rgba(76,154,91,0.3)", borderRadius: 8, padding: "9px 12px", fontSize: 12.5, color: "#4C9A5B", marginBottom: 15 }}>
+                  Tes coordonnées sont pré-remplies. Modifie-les si besoin.
+                </div>
+              )}
+
+              <label style={{ fontSize: 12.5, color: "#9C9BBE", display: "block", marginBottom: 5 }}>Nom et prénom *</label>
+              <input autoFocus={!me} value={form.nom} onChange={(e) => setForm({ ...form, nom: e.target.value })} placeholder="Ex : Marie Dupont" style={{ ...inputStyle, marginBottom: 13 }} />
+              <label style={{ fontSize: 12.5, color: "#9C9BBE", display: "block", marginBottom: 5 }}>Email *</label>
+              <input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} placeholder="marie@exemple.com" style={{ ...inputStyle, marginBottom: 13 }} />
+              <label style={{ fontSize: 12.5, color: "#9C9BBE", display: "block", marginBottom: 5 }}>Téléphone (WhatsApp)</label>
+              <input type="tel" value={form.tel} onChange={(e) => setForm({ ...form, tel: e.target.value })} onKeyDown={(e) => e.key === "Enter" && confirmPositioning()} placeholder="+594 6XX XX XX XX" style={{ ...inputStyle, marginBottom: 21 }} />
+              <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
+                <button onClick={() => setPositioning(null)} style={btnGhost}>Annuler</button>
+                <button onClick={confirmPositioning} style={btnGold}>Confirmer</button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* ---------- Confirmation modal ---------- */}
+      {confirmed && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(10,10,26,0.76)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 55, padding: 18, overflowY: "auto" }} onClick={() => setConfirmed(null)}>
+          <div onClick={(e) => e.stopPropagation()} style={{ background: "#1B1D3E", border: "1px solid #4C9A5B", borderRadius: 14, padding: 26, maxWidth: 420, width: "100%" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 9, marginBottom: 12 }}>
+              <Check size={20} color="#4C9A5B" />
+              <div style={{ fontFamily: "Fraunces, serif", fontSize: 21, fontWeight: 600 }}>Engagement enregistré</div>
+            </div>
+            <div style={{ fontSize: 13.5, color: "#9C9BBE", lineHeight: 1.7, marginBottom: 18 }}>
+              Merci {confirmed.person.nom} 🙏<br />
+              📅 {DAYS[confirmed.day]} · 🕐 {fmt(confirmed.slot.startMin)} – {fmt(confirmed.slot.endMin)}<br />
+              🔥 Veille {confirmed.veille.id} — {confirmed.veille.name}
+            </div>
+            <div style={{ background: "rgba(227,167,46,0.1)", border: "1px solid rgba(227,167,46,0.3)", borderRadius: 9, padding: "12px 14px", fontSize: 12.5, color: "#E3A72E", lineHeight: 1.6, marginBottom: 18 }}>
+              Ajoute le créneau à ton calendrier : ton téléphone t'enverra un rappel <strong>1 heure avant</strong>.
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 9 }}>
+              <button onClick={() => downloadIcsMulti(buildEvent(confirmed.veille, confirmed.day, confirmed.slot), `veille-${confirmed.veille.id}.ics`)} style={{ ...btnGold, display: "flex", alignItems: "center", justifyContent: "center", gap: 7, width: "100%" }}>
+                <CalendarPlus size={15} /> Ajouter à mon calendrier
+              </button>
+              <a href={mailtoConfirmation(confirmed.veille, confirmed.day, confirmed.slot, confirmed.person)} style={{ ...btnGhost, display: "flex", alignItems: "center", justifyContent: "center", gap: 7, textDecoration: "none", width: "100%" }}>
+                <Mail size={14} /> Recevoir la confirmation par mail
+              </a>
+              <button onClick={() => setConfirmed(null)} style={{ ...btnGhost, width: "100%", border: "none" }}>Fermer</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ---------- Admin PIN modal ---------- */}
+      {adminPromptOpen && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(10,10,26,0.76)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 58, padding: 18 }} onClick={() => setAdminPromptOpen(false)}>
+          <div onClick={(e) => e.stopPropagation()} style={{ background: "#1B1D3E", border: "1px solid #33355C", borderRadius: 14, padding: 24, maxWidth: 340, width: "100%" }}>
+            <div style={{ fontFamily: "Fraunces, serif", fontSize: 19, fontWeight: 600, marginBottom: 14 }}>Code organisateur</div>
+            <input type="password" autoFocus value={adminCodeInput} onChange={(e) => setAdminCodeInput(e.target.value)} onKeyDown={(e) => e.key === "Enter" && submitAdminCode()} placeholder="Code" style={{ ...inputStyle, marginBottom: 16 }} />
+            <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
+              <button onClick={() => setAdminPromptOpen(false)} style={btnGhost}>Annuler</button>
+              <button onClick={submitAdminCode} style={btnGold}>Valider</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ---------- Generic confirm modal ---------- */}
+      {confirmDialog && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(10,10,26,0.76)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 58, padding: 18 }} onClick={() => setConfirmDialog(null)}>
+          <div onClick={(e) => e.stopPropagation()} style={{ background: "#1B1D3E", border: "1px solid #33355C", borderRadius: 14, padding: 24, maxWidth: 380, width: "100%" }}>
+            <div style={{ fontSize: 14.5, color: "#F3F1E9", lineHeight: 1.6, marginBottom: 20 }}>{confirmDialog.message}</div>
+            <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
+              <button onClick={() => setConfirmDialog(null)} style={btnGhost}>Annuler</button>
+              <button onClick={() => { const fn = confirmDialog.onConfirm; setConfirmDialog(null); fn(); }} style={{ ...btnGold, background: "#C4482E" }}>Confirmer</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {toast && <div className="no-print" style={{ position: "fixed", bottom: 22, left: "50%", transform: "translateX(-50%)", background: "#E3A72E", color: "#12132B", padding: "10px 20px", borderRadius: 999, fontSize: 13.5, fontWeight: 600, zIndex: 60, maxWidth: "90%", textAlign: "center" }}>{toast}</div>}
+    </div>
+  );
+}
+
+/* --------------------------- Home --------------------------- */
+function Home({ veilles, day, onDayChange, onSelect, onShareDay }) {
+  const overall = globalCoverage(veilles, day);
+  return (
+    <div style={{ maxWidth: 1040, margin: "0 auto", padding: "40px 24px 64px" }}>
+      <div style={{ textAlign: "center", marginBottom: 8 }}>
+        <div style={{ fontFamily: "Fraunces, serif", fontSize: 15, color: "#E3A72E", fontStyle: "italic", marginBottom: 10 }}>8 veilles · 24 heures · une seule mission</div>
+        <h1 style={{ fontFamily: "Fraunces, serif", fontSize: 38, fontWeight: 600, margin: "0 0 10px", lineHeight: 1.15 }}>Chercher Dieu, sans interruption</h1>
+        <p style={{ color: "#9C9BBE", maxWidth: 470, margin: "0 auto 20px", fontSize: 15, lineHeight: 1.6 }}>Choisis un jour, une veille, puis positionne-toi sur un créneau libre.</p>
+        <DaySelector day={day} onChange={onDayChange} />
+        <button onClick={() => onShareDay(day)} className="no-print" style={{ ...btnGhost, marginTop: 14, padding: "6px 14px", fontSize: 12.5, display: "inline-flex", alignItems: "center", gap: 6 }}>
+          <Share2 size={12} /> Partager {DAYS[day].toLowerCase()} sur WhatsApp
+        </button>
+      </div>
+
+      <div style={{ display: "flex", justifyContent: "center", margin: "30px 0 4px" }}>
+        <PrayerWheel veilles={veilles} day={day} onSelect={onSelect} />
+      </div>
+
+      <div style={{ display: "flex", flexWrap: "wrap", gap: "7px 14px", justifyContent: "center", maxWidth: 620, margin: "0 auto 18px" }}>
+        {veilles.map((v, vi) => (
+          <button key={v.id} onClick={() => onSelect(v.id)} style={{ display: "flex", alignItems: "center", gap: 6, background: "none", border: "none", cursor: "pointer", color: "#9C9BBE", fontSize: 12 }}>
+            <span style={{ width: 10, height: 10, borderRadius: 3, background: VEILLE_COLORS[vi % VEILLE_COLORS.length], flexShrink: 0 }} />
+            V{v.id} · {v.name}
+          </button>
+        ))}
+      </div>
+
+      <div style={{ textAlign: "center", fontSize: 11.5, color: "#8688A8", marginBottom: 26 }}>
+        La partie pleine de chaque quartier indique le temps déjà couvert.
+      </div>
+
+      {overall >= 0.999
+        ? <div style={{ textAlign: "center", color: "#4C9A5B", fontSize: 14.5, fontWeight: 600, marginBottom: 36 }}>🙌 Chaîne complète pour {DAYS[day].toLowerCase()} !</div>
+        : <div style={{ textAlign: "center", color: "#9C9BBE", fontSize: 13.5, marginBottom: 36 }}>⚠️ Des créneaux restent à couvrir {DAYS[day].toLowerCase()}</div>}
+
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 14 }}>
+        {veilles.map((v, vi) => {
+          const pct = Math.round(veilleCoverageRatio(v, day) * 100);
+          const color = VEILLE_COLORS[vi % VEILLE_COLORS.length];
+          return (
+            <button key={v.id} onClick={() => onSelect(v.id)} style={{ textAlign: "left", background: "#1B1D3E", border: "1px solid #262852", borderLeft: `3px solid ${color}`, borderRadius: 12, padding: "17px 18px 15px", cursor: "pointer", color: "#F3F1E9" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 9 }}>
+                <div>
+                  <div style={{ fontSize: 11.5, color, marginBottom: 2, fontWeight: 600 }}>Veille {v.id}</div>
+                  <div style={{ fontFamily: "Fraunces, serif", fontWeight: 600, fontSize: 17.5 }}>{v.name}</div>
+                </div>
+                <ChevronRight size={16} color="#8688A8" />
+              </div>
+              <div style={{ fontSize: 13, color: "#9C9BBE", marginBottom: 13, display: "flex", alignItems: "center", gap: 5 }}>
+                <Clock size={13} /> {fmt(v.startHour * 60)} – {fmt((v.startHour + 3) * 60)}
+              </div>
+              <div style={{ height: 5, background: "#12132B", borderRadius: 999, overflow: "hidden" }}>
+                <div style={{ height: "100%", width: `${pct}%`, background: color, borderRadius: 999 }} />
+              </div>
+              <div style={{ fontSize: 11.5, color: "#8688A8", marginTop: 6 }}>{pct}% · {requiredFor(v)} conducteur{requiredFor(v) > 1 ? "s" : ""} / créneau</div>
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+/* --------------------------- Week --------------------------- */
+function WeekView({ veilles, isAdmin, onPosition, onSelectVeille, onShareAllGaps }) {
+  const gaps = findGaps(veilles);
+  const [showAll, setShowAll] = useState(false);
+  const shown = showAll ? gaps : gaps.slice(0, 6);
+
+  return (
+    <div style={{ maxWidth: 1260, margin: "0 auto", padding: "32px 18px 70px" }}>
+      <div style={{ textAlign: "center", marginBottom: 20 }}>
+        <div className="no-print" style={{ fontFamily: "Fraunces, serif", fontSize: 15, color: "#E3A72E", fontStyle: "italic", marginBottom: 8 }}>Vue d'ensemble</div>
+        <h1 className="print-dark" style={{ fontFamily: "Fraunces, serif", fontSize: 29, fontWeight: 600, margin: "0 0 9px" }}>Planning Fire — Récapitulatif de la semaine</h1>
+        <p className="no-print" style={{ color: "#9C9BBE", fontSize: 14 }}>Clique sur un créneau pour t'y positionner.</p>
+      </div>
+
+      {/* Alerts panel */}
+      {gaps.length > 0 && (
+        <div className="no-print" style={{ background: "rgba(196,72,46,0.1)", border: "1px solid rgba(196,72,46,0.35)", borderRadius: 11, padding: "15px 18px", marginBottom: 20 }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap", marginBottom: 11 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, color: "#E0A83A", fontSize: 14, fontWeight: 600 }}>
+              <AlertTriangle size={15} /> {gaps.length} créneau{gaps.length > 1 ? "x" : ""} à couvrir cette semaine
+            </div>
+            <button onClick={onShareAllGaps} style={{ ...btnGhost, padding: "5px 12px", fontSize: 12.5, display: "flex", alignItems: "center", gap: 6 }}><Share2 size={12} /> Partager la liste</button>
+          </div>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 7 }}>
+            {shown.map((g, i) => (
+              <button key={i} onClick={() => onPosition(g.veille.id, g.day, g.slot.index)} style={{ background: "rgba(196,72,46,0.16)", border: "1px solid rgba(196,72,46,0.35)", color: "#F3F1E9", borderRadius: 7, padding: "5px 10px", fontSize: 12, cursor: "pointer" }}>
+                {DAYS[g.day].slice(0, 3)} {fmt(g.slot.startMin)} <span style={{ color: "#C4482E", fontWeight: 700 }}>·{g.manque}</span>
+              </button>
+            ))}
+            {gaps.length > 6 && (
+              <button onClick={() => setShowAll(!showAll)} style={{ background: "none", border: "none", color: "#E3A72E", fontSize: 12, cursor: "pointer", textDecoration: "underline" }}>
+                {showAll ? "Réduire" : `+ ${gaps.length - 6} autres`}
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
+      <div className="no-print" style={{ display: "flex", gap: 15, justifyContent: "center", flexWrap: "wrap", marginBottom: 18, fontSize: 12.5 }}>
+        {[["#C4482E", "Disponible"], ["#E0A83A", "Places restantes"], ["#4C9A5B", "Complet"], ["#8688A8", "Verrouillé"]].map(([c, l]) => (
+          <span key={l} style={{ display: "flex", alignItems: "center", gap: 6, color: "#9C9BBE" }}>
+            <span style={{ width: 11, height: 11, borderRadius: 3, background: c, display: "inline-block" }} /> {l}
+          </span>
+        ))}
+        <button onClick={() => window.print()} style={{ ...btnGhost, padding: "4px 12px", fontSize: 12.5, display: "flex", alignItems: "center", gap: 6 }}><Printer size={12} /> Imprimer (A4 paysage)</button>
+      </div>
+
+      <div style={{ overflowX: "auto", border: "1px solid #262852", borderRadius: 12 }} className="print-table">
+        <table style={{ borderCollapse: "collapse", width: "100%", minWidth: 960 }}>
+          <thead>
+            <tr>
+              <th className="print-head" style={{ position: "sticky", left: 0, background: "#181A3D", zIndex: 2, padding: "11px 13px", textAlign: "left", fontSize: 11.5, color: "#8688A8", borderBottom: "1px solid #262852", minWidth: 140 }}>Créneau</th>
+              {DAYS.map((d) => <th key={d} className="print-head" style={{ padding: "11px 9px", textAlign: "center", fontSize: 12.5, color: "#F3F1E9", borderBottom: "1px solid #262852", minWidth: 118 }}>{d}</th>)}
+            </tr>
+          </thead>
+          <tbody>
+            {veilles.map((v, vi) => {
+              const req = requiredFor(v);
+              return (
+                <React.Fragment key={v.id}>
+                  <tr>
+                    <td colSpan={8} onClick={() => onSelectVeille(v.id)} className="print-head" style={{ background: "#1B1D3E", padding: "8px 13px", fontSize: 12.5, fontWeight: 700, color: VEILLE_COLORS[vi % VEILLE_COLORS.length], cursor: "pointer", borderTop: "1px solid #262852", borderBottom: "1px solid #262852" }}>
+                      Veille {v.id} — {v.name} <span style={{ color: "#8688A8", fontWeight: 400 }}>({fmt(v.startHour * 60)}–{fmt((v.startHour + 3) * 60)} · {req} conducteur{req > 1 ? "s" : ""})</span>
+                    </td>
+                  </tr>
+                  {slotsFor(v).map((s) => (
+                    <tr key={s.index}>
+                      <td style={{ position: "sticky", left: 0, background: "#12132B", zIndex: 1, padding: "7px 13px", fontSize: 12, color: "#9C9BBE", borderBottom: "1px solid #1E2044" }} className="print-head">
+                        {fmt(s.startMin)} – {fmt(s.endMin)}
+                      </td>
+                      {DAYS.map((d, di) => {
+                        const st = slotStatus(v, di, s.index);
+                        const names = getParticipants(v, di, s.index);
+                        const c = STATUS_COLORS[st];
+                        const full = st === "covered" || st === "locked";
+                        const label = st === "locked" ? "Verrouillé"
+                          : names.length === 0 ? `Libre · 0/${req}`
+                          : `${names.map((p) => p.nom.split(" ")[0]).join(", ")} · ${names.length}/${req}`;
+                        return (
+                          <td key={d} style={{ padding: "4px 6px", borderBottom: "1px solid #1E2044", textAlign: "center" }}>
+                            <button onClick={() => !full && onPosition(v.id, di, s.index)} disabled={full}
+                              className={`print-cell ${names.length === 0 ? "print-cell-free" : "print-cell-full"}`}
+                              title={full ? c.label : "Se positionner"}
+                              style={{ width: "100%", background: c.bg, color: c.fg, border: `1px solid ${c.fg}33`, borderRadius: 6, padding: "6px 4px", fontSize: 10.5, fontWeight: 600, cursor: full ? "default" : "pointer", lineHeight: 1.3, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                              {label}
+                            </button>
+                          </td>
+                        );
+                      })}
+                    </tr>
+                  ))}
+                </React.Fragment>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+/* ------------------------ Mes créneaux ------------------------ */
+function MineView({ mine, me, onCancel, onGoWeek }) {
+  const total = mine.reduce((s, b) => s + b.veille.duration, 0);
+  return (
+    <div style={{ maxWidth: 720, margin: "0 auto", padding: "40px 24px 70px" }}>
+      <div style={{ textAlign: "center", marginBottom: 30 }}>
+        <div style={{ fontFamily: "Fraunces, serif", fontSize: 15, color: "#E3A72E", fontStyle: "italic", marginBottom: 8 }}>Mon engagement</div>
+        <h1 style={{ fontFamily: "Fraunces, serif", fontSize: 30, fontWeight: 600, margin: "0 0 8px" }}>Mes créneaux</h1>
+        {me
+          ? <p style={{ color: "#9C9BBE", fontSize: 14 }}>{mine.length} créneau{mine.length > 1 ? "x" : ""} · {Math.floor(total / 60)}h{total % 60 ? String(total % 60).padStart(2, "0") : ""} de prière cette semaine</p>
+          : <p style={{ color: "#9C9BBE", fontSize: 14 }}>Réserve un premier créneau pour retrouver tes engagements ici.</p>}
+      </div>
+
+      {mine.length === 0 ? (
+        <div style={{ textAlign: "center", padding: "40px 20px", background: "#1B1D3E", border: "1px solid #262852", borderRadius: 12 }}>
+          <div style={{ color: "#8688A8", fontSize: 14, marginBottom: 18 }}>Aucun créneau réservé pour l'instant.</div>
+          <button onClick={onGoWeek} style={btnGold}>Voir les créneaux disponibles</button>
+        </div>
+      ) : (
+        <>
+          <button onClick={() => downloadIcsMulti(mine.flatMap((b) => buildEvent(b.veille, b.day, b.slot)), "mes-creneaux-priere.ics")} className="no-print" style={{ ...btnGold, display: "flex", alignItems: "center", justifyContent: "center", gap: 8, width: "100%", marginBottom: 18 }}>
+            <CalendarPlus size={15} /> Ajouter tous mes créneaux au calendrier (rappels 1h avant)
+          </button>
+          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            {mine.map((b, i) => (
+              <div key={i} style={{ background: "#1B1D3E", border: "1px solid #262852", borderRadius: 11, padding: "15px 17px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 14, flexWrap: "wrap" }}>
+                <div>
+                  <div style={{ fontSize: 12, color: "#E3A72E", marginBottom: 3 }}>{DAYS[b.day]}</div>
+                  <div style={{ fontFamily: "Fraunces, serif", fontSize: 17, fontWeight: 600, marginBottom: 3 }}>{fmt(b.slot.startMin)} – {fmt(b.slot.endMin)}</div>
+                  <div style={{ fontSize: 12.5, color: "#9C9BBE" }}>Veille {b.veille.id} — {b.veille.name}</div>
+                </div>
+                <div className="no-print" style={{ display: "flex", gap: 7 }}>
+                  <button onClick={() => downloadIcsMulti(buildEvent(b.veille, b.day, b.slot), `veille-${b.veille.id}.ics`)} title="Ajouter au calendrier" style={{ ...btnGhost, padding: "7px 10px" }}><CalendarPlus size={14} /></button>
+                  <button onClick={() => onCancel(b)} title="Annuler ce créneau" style={{ ...btnGhost, padding: "7px 10px", color: "#C4482E", borderColor: "rgba(196,72,46,0.4)" }}><Trash2 size={14} /></button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+/* --------------------------- Stats --------------------------- */
+function StatsView({ veilles }) {
+  const week = weekCoverage(veilles);
+  const gaps = findGaps(veilles);
+
+  const people = {};
+  let totalMin = 0;
+  veilles.forEach((v) => DAYS.forEach((_, di) => slotsFor(v).forEach((s) =>
+    getParticipants(v, di, s.index).forEach((p) => {
+      const k = (p.email || p.nom).toLowerCase();
+      people[k] = people[k] || { nom: p.nom, min: 0, n: 0 };
+      people[k].min += v.duration; people[k].n += 1; totalMin += v.duration;
+    })
+  )));
+  const ranking = Object.values(people).sort((a, b) => b.min - a.min);
+
+  const perVeille = veilles.map((v) => ({ v, ratio: DAYS.reduce((s, _, d) => s + veilleCoverageRatio(v, d), 0) / 7 }));
+  const perDay = DAYS.map((d, i) => ({ d, ratio: globalCoverage(veilles, i) }));
+
+  const Bar = ({ ratio }) => (
+    <div style={{ height: 6, background: "#12132B", borderRadius: 999, overflow: "hidden", flex: 1 }}>
+      <div style={{ height: "100%", width: `${Math.round(ratio * 100)}%`, background: ratio >= 0.999 ? "#4C9A5B" : ratio > 0.5 ? "#E0A83A" : "#C4482E", borderRadius: 999 }} />
+    </div>
+  );
+
+  return (
+    <div style={{ maxWidth: 880, margin: "0 auto", padding: "40px 24px 70px" }}>
+      <div style={{ textAlign: "center", marginBottom: 32 }}>
+        <div style={{ fontFamily: "Fraunces, serif", fontSize: 15, color: "#E3A72E", fontStyle: "italic", marginBottom: 8 }}>Suivi</div>
+        <h1 style={{ fontFamily: "Fraunces, serif", fontSize: 30, fontWeight: 600, margin: 0 }}>Statistiques</h1>
+      </div>
+
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 12, marginBottom: 34 }}>
+        {[
+          { k: "Couverture semaine", v: `${Math.round(week * 100)}%` },
+          { k: "Heures engagées", v: `${Math.floor(totalMin / 60)}h` },
+          { k: "Conducteurs", v: ranking.length },
+          { k: "Créneaux à couvrir", v: gaps.length },
+        ].map((s) => (
+          <div key={s.k} style={{ background: "#1B1D3E", border: "1px solid #262852", borderRadius: 11, padding: "17px 16px", textAlign: "center" }}>
+            <div style={{ fontFamily: "Fraunces, serif", fontSize: 28, fontWeight: 700, color: "#E3A72E" }}>{s.v}</div>
+            <div style={{ fontSize: 11.5, color: "#8688A8", marginTop: 3 }}>{s.k}</div>
+          </div>
+        ))}
+      </div>
+
+      <div style={{ marginBottom: 34 }}>
+        <div style={{ fontSize: 12.5, color: "#8688A8", marginBottom: 13 }}>Couverture moyenne par jour</div>
+        {perDay.map(({ d, ratio }) => (
+          <div key={d} style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 9, fontSize: 13 }}>
+            <span style={{ width: 82, color: "#9C9BBE" }}>{d}</span>
+            <Bar ratio={ratio} />
+            <span style={{ width: 40, textAlign: "right", color: "#8688A8", fontSize: 12 }}>{Math.round(ratio * 100)}%</span>
+          </div>
+        ))}
+      </div>
+
+      <div style={{ marginBottom: 34 }}>
+        <div style={{ fontSize: 12.5, color: "#8688A8", marginBottom: 13 }}>Couverture moyenne par veille</div>
+        {perVeille.map(({ v, ratio }) => (
+          <div key={v.id} style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 9, fontSize: 13 }}>
+            <span style={{ width: 130, color: "#9C9BBE", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>V{v.id} · {v.name}</span>
+            <Bar ratio={ratio} />
+            <span style={{ width: 40, textAlign: "right", color: "#8688A8", fontSize: 12 }}>{Math.round(ratio * 100)}%</span>
+          </div>
+        ))}
+      </div>
+
+      <div>
+        <div style={{ fontSize: 12.5, color: "#8688A8", marginBottom: 13 }}>Engagement des conducteurs</div>
+        {ranking.length === 0 ? (
+          <div style={{ color: "#8688A8", fontSize: 13.5 }}>Aucun conducteur inscrit pour l'instant.</div>
+        ) : (
+          <div style={{ background: "#1B1D3E", border: "1px solid #262852", borderRadius: 11, overflow: "hidden" }}>
+            {ranking.map((p, i) => (
+              <div key={i} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "11px 16px", borderBottom: i < ranking.length - 1 ? "1px solid #262852" : "none", fontSize: 13.5 }}>
+                <span style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                  <span style={{ color: "#8688A8", fontSize: 12, width: 16 }}>{i + 1}</span>
+                  {p.nom}
+                </span>
+                <span style={{ color: "#E3A72E", fontSize: 12.5 }}>{p.n} créneau{p.n > 1 ? "x" : ""} · {Math.floor(p.min / 60)}h{p.min % 60 ? String(p.min % 60).padStart(2, "0") : ""}</span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* ----------------------- Veille detail ----------------------- */
+function VeilleDetail({
+  veille, day, onDayChange, isAdmin, me, onBack, onOpenPositioning, onRemoveParticipant,
+  onToggleLock, onCancelMine, onSetOpenCount, onEdit, onChangeDuration, onAddObjectif, onRemoveObjectif, onEditObjectif, onShare,
+}) {
+  const slots = slotsFor(veille);
+  const openCount = openCountFor(veille, day);
+  const req = requiredFor(veille);
+  return (
+    <div style={{ maxWidth: 880, margin: "0 auto", padding: "30px 24px 70px" }}>
+      <button onClick={onBack} className="no-print" style={{ display: "flex", alignItems: "center", gap: 6, background: "none", border: "none", color: "#9C9BBE", cursor: "pointer", fontSize: 13.5, marginBottom: 20 }}>
+        <ArrowLeft size={15} /> Toutes les veilles
+      </button>
+
+      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}>
+        <div>
+          <div style={{ fontSize: 12.5, color: "#E3A72E", marginBottom: 4 }}>Veille {veille.id} · {fmt(veille.startHour * 60)} – {fmt((veille.startHour + 3) * 60)}</div>
+          {isAdmin
+            ? <input value={veille.name} onChange={(e) => onEdit({ name: e.target.value })} style={{ fontFamily: "Fraunces, serif", fontSize: 31, fontWeight: 600, background: "transparent", border: "1px dashed #33355C", borderRadius: 6, color: "#F3F1E9", padding: "2px 8px" }} />
+            : <h1 style={{ fontFamily: "Fraunces, serif", fontSize: 31, fontWeight: 600, margin: 0 }}>{veille.name}</h1>}
+        </div>
+        <div className="no-print" style={{ display: "flex", gap: 8 }}>
+          <button onClick={onShare} style={btnGhost}><span style={{ display: "flex", alignItems: "center", gap: 6 }}><Share2 size={13} /> Partager</span></button>
+          <button onClick={() => window.print()} style={btnGhost}><span style={{ display: "flex", alignItems: "center", gap: 6 }}><Printer size={13} /> Imprimer</span></button>
+        </div>
+      </div>
+
+      {isAdmin
+        ? <input value={veille.theme} onChange={(e) => onEdit({ theme: e.target.value })} style={{ width: "100%", marginTop: 10, background: "transparent", border: "1px dashed #33355C", borderRadius: 6, color: "#9C9BBE", padding: "4px 8px", fontSize: 15 }} />
+        : <p style={{ color: "#9C9BBE", fontSize: 15, marginTop: 8 }}>{veille.theme}</p>}
+
+      <div style={{ borderLeft: "3px solid #E3A72E", padding: "4px 0 4px 18px", margin: "24px 0" }}>
+        {isAdmin ? (
+          <>
+            <textarea value={veille.versets[0]?.text || ""} onChange={(e) => onEdit({ versets: [{ ...veille.versets[0], text: e.target.value }] })} rows={2} style={{ width: "100%", background: "transparent", border: "1px dashed #33355C", borderRadius: 6, color: "#F3F1E9", fontFamily: "Fraunces, serif", fontStyle: "italic", fontSize: 17, padding: 8, resize: "vertical" }} />
+            <input value={veille.versets[0]?.ref || ""} onChange={(e) => onEdit({ versets: [{ ...veille.versets[0], ref: e.target.value }] })} style={{ marginTop: 6, background: "transparent", border: "1px dashed #33355C", borderRadius: 6, color: "#8688A8", fontSize: 13, padding: "3px 8px" }} />
+          </>
+        ) : (
+          <>
+            <div style={{ fontFamily: "Fraunces, serif", fontStyle: "italic", fontSize: 18, lineHeight: 1.5 }}>« {veille.versets[0]?.text} »</div>
+            <div style={{ color: "#8688A8", fontSize: 13, marginTop: 6 }}>{veille.versets[0]?.ref}</div>
+          </>
+        )}
+      </div>
+
+      <div style={{ marginBottom: 28 }}>
+        <div style={{ fontSize: 12.5, color: "#8688A8", marginBottom: 10, display: "flex", alignItems: "center", gap: 6 }}><BookOpen size={13} /> Sujets de prière</div>
+        <ul style={{ margin: 0, padding: 0, listStyle: "none" }}>
+          {veille.objectifs.map((o, i) => (
+            <li key={i} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8, fontSize: 14.5 }}>
+              <span style={{ color: "#E3A72E" }}>—</span>
+              {isAdmin ? (
+                <>
+                  <input value={o} onChange={(e) => onEditObjectif(i, e.target.value)} style={{ flex: 1, background: "transparent", border: "1px dashed #33355C", borderRadius: 6, color: "#F3F1E9", padding: "4px 8px", fontSize: 14 }} />
+                  <button onClick={() => onRemoveObjectif(i)} style={{ background: "none", border: "none", color: "#C4482E", cursor: "pointer" }}><Trash2 size={14} /></button>
+                </>
+              ) : <span>{o}</span>}
+            </li>
+          ))}
+        </ul>
+        {isAdmin && <button onClick={onAddObjectif} style={{ ...btnGhost, marginTop: 4 }}><span style={{ display: "flex", alignItems: "center", gap: 6 }}><Plus size={13} /> Ajouter un sujet</span></button>}
+      </div>
+
+      {isAdmin && (
+        <div style={{ marginBottom: 24, display: "flex", gap: 26, flexWrap: "wrap" }}>
+          <div>
+            <div style={{ fontSize: 12.5, color: "#8688A8", marginBottom: 8 }}>Format des créneaux</div>
+            <div style={{ display: "flex", gap: 8 }}>
+              {[30, 60].map((d) => (
+                <button key={d} onClick={() => onChangeDuration(d)} style={{ padding: "6px 14px", borderRadius: 999, fontSize: 13, cursor: "pointer", border: "1px solid " + (veille.duration === d ? "#E3A72E" : "#33355C"), background: veille.duration === d ? "rgba(227,167,46,0.14)" : "transparent", color: veille.duration === d ? "#E3A72E" : "#9C9BBE" }}>{d} min</button>
+              ))}
+            </div>
+          </div>
+          <div>
+            <div style={{ fontSize: 12.5, color: "#8688A8", marginBottom: 8 }}>Conducteurs par créneau</div>
+            <div style={{ display: "flex", gap: 8 }}>
+              {[1, 2, 3].map((n) => (
+                <button key={n} onClick={() => onEdit({ conducteursRequis: n })} style={{ padding: "6px 16px", borderRadius: 999, fontSize: 13, cursor: "pointer", border: "1px solid " + (req === n ? "#E3A72E" : "#33355C"), background: req === n ? "rgba(227,167,46,0.14)" : "transparent", color: req === n ? "#E3A72E" : "#9C9BBE", fontWeight: req === n ? 700 : 500 }}>{n}</button>
+              ))}
+            </div>
+          </div>
+          <div>
+            <div style={{ fontSize: 12.5, color: "#8688A8", marginBottom: 8 }}>Créneaux ouverts — {DAYS[day]}</div>
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <button onClick={() => onSetOpenCount(veille.id, day, Math.max(0, openCount - 1))} style={{ width: 30, height: 30, borderRadius: 7, border: "1px solid #33355C", background: "transparent", color: "#F3F1E9", cursor: "pointer", fontSize: 16, lineHeight: 1 }}>−</button>
+              <span style={{ fontSize: 14, fontWeight: 700, minWidth: 50, textAlign: "center" }}>{openCount} / {slots.length}</span>
+              <button onClick={() => onSetOpenCount(veille.id, day, Math.min(slots.length, openCount + 1))} style={{ width: 30, height: 30, borderRadius: 7, border: "1px solid #33355C", background: "transparent", color: "#F3F1E9", cursor: "pointer", fontSize: 16, lineHeight: 1 }}>+</button>
+            </div>
+            <div style={{ fontSize: 11, color: "#6F7196", marginTop: 6, maxWidth: 220 }}>Ouvre les {openCount} premiers créneaux de ce jour ; le reste est fermé au public. Tu peux aussi verrouiller un créneau précis ci-dessous pour le réserver à quelqu'un.</div>
+          </div>
+        </div>
+      )}
+
+      <div style={{ marginBottom: 16 }}>
+        <div style={{ fontSize: 12.5, color: "#8688A8", marginBottom: 10, display: "flex", alignItems: "center", gap: 6 }}><CalendarDays size={13} /> Jour</div>
+        <DaySelector day={day} onChange={onDayChange} />
+      </div>
+
+      <div style={{ fontSize: 12.5, color: "#8688A8", marginBottom: 12, display: "flex", alignItems: "center", gap: 6 }}><Clock size={13} /> Créneaux — {DAYS[day]}</div>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(245px, 1fr))", gap: 10 }}>
+        {slots.map((s) => {
+          const st = slotStatus(veille, day, s.index);
+          const c = STATUS_COLORS[st];
+          const names = getParticipants(veille, day, s.index);
+          const full = names.length >= req;
+          return (
+            <div key={s.index} style={{ background: c.bg, border: `1px solid ${c.fg}44`, borderRadius: 10, padding: "12px 14px" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 7 }}>
+                <span style={{ fontSize: 13.5, fontWeight: 600 }}>{fmt(s.startMin)} – {fmt(s.endMin)}</span>
+                <span style={{ fontSize: 10.5, fontWeight: 700, color: c.fg }}>{names.length}/{req}</span>
+              </div>
+              {names.length > 0 && (
+                <div style={{ marginBottom: 9 }}>
+                  {names.map((p, i) => {
+                    const isMe = me && p.email && p.email.toLowerCase() === me.email.toLowerCase();
+                    return (
+                      <div key={i} style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", fontSize: 13, padding: "3px 0" }}>
+                        <div style={{ display: "flex", alignItems: "flex-start", gap: 6, minWidth: 0 }}>
+                          <Check size={12} color={c.fg} style={{ marginTop: 3, flexShrink: 0 }} />
+                          <div style={{ minWidth: 0 }}>
+                            <div style={{ overflow: "hidden", textOverflow: "ellipsis" }}>{p.nom}{isMe && <span style={{ color: "#E3A72E", fontSize: 11 }}> · toi</span>}</div>
+                            {isAdmin && (p.email || p.tel) && (
+                              <div style={{ fontSize: 11, color: "#8688A8", marginTop: 1 }}>
+                                {p.email && <span style={{ display: "flex", alignItems: "center", gap: 4 }}><Mail size={9} /> {p.email}</span>}
+                                {p.tel && <span style={{ display: "flex", alignItems: "center", gap: 4 }}><Phone size={9} /> {p.tel}</span>}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                        {(isAdmin || isMe) && (
+                          <button onClick={() => { if (isMe && !isAdmin) { onCancelMine(veille.id, day, s.index, i); } else { onRemoveParticipant(veille.id, day, s.index, i); } }} title={isMe ? "Annuler mon créneau" : "Retirer"} style={{ background: "none", border: "none", color: isMe ? "#C4482E" : "#8688A8", cursor: "pointer", flexShrink: 0 }}><X size={12} /></button>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+              <div className="no-print" style={{ display: "flex", gap: 6 }}>
+                {(st !== "locked" || isAdmin) && !full && (
+                  <button onClick={() => onOpenPositioning(veille.id, day, s.index)} style={{ flex: 1, fontSize: 12.5, padding: "6px 10px", borderRadius: 7, border: "none", background: c.fg, color: "#12132B", fontWeight: 700, cursor: "pointer" }}>{st === "locked" ? "Réserver pour quelqu'un" : "Je me positionne"}</button>
+                )}
+                {st !== "locked" && full && <div style={{ flex: 1, fontSize: 12, padding: "6px 10px", textAlign: "center", color: c.fg, fontWeight: 600 }}>Créneau complet</div>}
+                {st === "locked" && !isAdmin && !full && <div style={{ flex: 1, fontSize: 12, padding: "6px 10px", textAlign: "center", color: c.fg, fontWeight: 600 }}>Fermé</div>}
+                {isAdmin && (
+                  <button onClick={() => onToggleLock(veille.id, day, s.index)} title="Verrouiller" style={{ padding: "6px 9px", borderRadius: 7, border: "1px solid #33355C", background: "transparent", color: "#9C9BBE", cursor: "pointer" }}>
+                    {st === "locked" ? <Unlock size={12} /> : <Lock size={12} />}
+                  </button>
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+/* ------------------------------ mount ------------------------------ */
+const __root = ReactDOM.createRoot(document.getElementById("root"));
+__root.render(<App />);
+</script>
+<script>
+(function () {
+  var src = document.getElementById("app-source").textContent;
+  var out = Babel.transform(src, { presets: [["react", { runtime: "classic" }]] }).code;
+  var s = document.createElement("script");
+  s.text = out;
+  document.body.appendChild(s);
+})();
+</script>
+</body>
+</html>
