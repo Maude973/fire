@@ -344,6 +344,7 @@ function App() {
   const [view, setView] = useState("home");
   const [selectedId, setSelectedId] = useState(null);
   const [selectedDay, setSelectedDay] = useState(() => new Date().getDay());
+  const [lockScope, setLockScope] = useState("day"); // "day" | "week" — applies to lock toggles and the open-slots stepper
   const [isAdmin, setIsAdmin] = useState(false);
   const [readOnly, setReadOnly] = useState(false);
   const [me, setMe] = useState(null);
@@ -534,19 +535,33 @@ function App() {
     });
   };
 
-  const toggleLock = (vId, day, si) => updateVeilles((prev) => prev.map((v) => {
+  const toggleLock = (vId, day, si, scope) => updateVeilles((prev) => prev.map((v) => {
     if (v.id !== vId) return v;
+    if (scope === "week") {
+      const nextLocked = !getLocked(v, day, si);
+      const nl = {};
+      for (let d = 0; d < 7; d++) {
+        const dl = { ...(v.locked[d] || {}) };
+        if (nextLocked) dl[si] = true; else delete dl[si];
+        nl[d] = dl;
+      }
+      return { ...v, locked: nl };
+    }
     const dl = { ...(v.locked[day] || {}) };
     dl[si] = !dl[si];
     return { ...v, locked: { ...v.locked, [day]: dl } };
   }));
 
-  const setOpenCount = (vId, day, n) => updateVeilles((prev) => prev.map((v) => {
+  const setOpenCount = (vId, day, n, scope) => updateVeilles((prev) => prev.map((v) => {
     if (v.id !== vId) return v;
     const total = slotsFor(v).length;
-    const dl = {};
-    for (let i = 0; i < total; i++) { if (i >= n) dl[i] = true; }
-    return { ...v, locked: { ...v.locked, [day]: dl } };
+    const buildDl = () => { const dl = {}; for (let i = 0; i < total; i++) { if (i >= n) dl[i] = true; } return dl; };
+    if (scope === "week") {
+      const nl = {};
+      for (let d = 0; d < 7; d++) nl[d] = buildDl();
+      return { ...v, locked: nl };
+    }
+    return { ...v, locked: { ...v.locked, [day]: buildDl() } };
   }));
 
   const editVeille = (id, patch) => updateVeilles((p) => p.map((v) => (v.id === id ? { ...v, ...patch } : v)));
@@ -729,7 +744,8 @@ function App() {
           <VeilleDetail
             veille={selected} day={selectedDay} onDayChange={setSelectedDay} isAdmin={isAdmin} me={me}
             onBack={() => setView("home")} onOpenPositioning={openPositioning}
-            onRemoveParticipant={removeParticipant} onToggleLock={toggleLock} onCancelMine={cancelMineSlot} onSetOpenCount={setOpenCount}
+            onRemoveParticipant={removeParticipant} onToggleLock={(vId, day, si) => toggleLock(vId, day, si, lockScope)} onCancelMine={cancelMineSlot}
+            onSetOpenCount={(vId, day, n) => setOpenCount(vId, day, n, lockScope)} lockScope={lockScope} onSetLockScope={setLockScope}
             onEdit={(p) => editVeille(selected.id, p)} onChangeDuration={(d) => changeDuration(selected.id, d)}
             onAddObjectif={() => addObjectif(selected.id)} onRemoveObjectif={(i) => removeObjectif(selected.id, i)}
             onEditObjectif={(i, t) => editObjectif(selected.id, i, t)} onShare={() => shareVeille(selected)}
@@ -1177,7 +1193,7 @@ function StatsView({ veilles }) {
 /* ----------------------- Veille detail ----------------------- */
 function VeilleDetail({
   veille, day, onDayChange, isAdmin, me, onBack, onOpenPositioning, onRemoveParticipant,
-  onToggleLock, onCancelMine, onSetOpenCount, onEdit, onChangeDuration, onAddObjectif, onRemoveObjectif, onEditObjectif, onShare,
+  onToggleLock, onCancelMine, onSetOpenCount, lockScope, onSetLockScope, onEdit, onChangeDuration, onAddObjectif, onRemoveObjectif, onEditObjectif, onShare,
 }) {
   const slots = slotsFor(veille);
   const openCount = openCountFor(veille, day);
@@ -1256,13 +1272,26 @@ function VeilleDetail({
             </div>
           </div>
           <div>
-            <div style={{ fontSize: 12.5, color: "#8688A8", marginBottom: 8 }}>Créneaux ouverts — {DAYS[day]}</div>
+            <div style={{ fontSize: 12.5, color: "#8688A8", marginBottom: 8 }}>Verrouillage : s'applique à</div>
+            <div style={{ display: "flex", gap: 8 }}>
+              {[["day", "Ce jour"], ["week", "Toute la semaine"]].map(([val, label]) => (
+                <button key={val} onClick={() => onSetLockScope(val)} style={{ padding: "6px 14px", borderRadius: 999, fontSize: 13, cursor: "pointer", border: "1px solid " + (lockScope === val ? "#E3A72E" : "#33355C"), background: lockScope === val ? "rgba(227,167,46,0.14)" : "transparent", color: lockScope === val ? "#E3A72E" : "#9C9BBE" }}>{label}</button>
+              ))}
+            </div>
+          </div>
+          <div>
+            <div style={{ fontSize: 12.5, color: "#8688A8", marginBottom: 8 }}>Créneaux ouverts — {lockScope === "week" ? "toute la semaine" : DAYS[day]}</div>
             <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
               <button onClick={() => onSetOpenCount(veille.id, day, Math.max(0, openCount - 1))} style={{ width: 30, height: 30, borderRadius: 7, border: "1px solid #33355C", background: "transparent", color: "#F3F1E9", cursor: "pointer", fontSize: 16, lineHeight: 1 }}>−</button>
               <span style={{ fontSize: 14, fontWeight: 700, minWidth: 50, textAlign: "center" }}>{openCount} / {slots.length}</span>
               <button onClick={() => onSetOpenCount(veille.id, day, Math.min(slots.length, openCount + 1))} style={{ width: 30, height: 30, borderRadius: 7, border: "1px solid #33355C", background: "transparent", color: "#F3F1E9", cursor: "pointer", fontSize: 16, lineHeight: 1 }}>+</button>
             </div>
-            <div style={{ fontSize: 11, color: "#6F7196", marginTop: 6, maxWidth: 220 }}>Ouvre les {openCount} premiers créneaux de ce jour ; le reste est fermé au public. Tu peux aussi verrouiller un créneau précis ci-dessous pour le réserver à quelqu'un.</div>
+            <div style={{ fontSize: 11, color: "#6F7196", marginTop: 6, maxWidth: 240 }}>
+              {lockScope === "week"
+                ? "Ouvre les mêmes créneaux sur les 7 jours ; le reste est fermé au public."
+                : "Ouvre les créneaux de ce jour uniquement ; le reste est fermé au public."}
+              {" "}Tu peux aussi verrouiller un créneau précis ci-dessous pour le réserver à quelqu'un — {lockScope === "week" ? "ça verrouillera ce créneau tous les jours" : "ça ne verrouille que ce jour"}.
+            </div>
           </div>
         </div>
       )}
